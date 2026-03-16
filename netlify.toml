@@ -1,0 +1,32 @@
+[build]
+  base      = "frontend"
+  command   = "cd .. && npm install && cd frontend && npm run build"
+  publish   = "dist"
+  functions = "../netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[dev]
+  port       = 8888
+  targetPort = 5173
+  autoLaunch = false
+
+[functions]
+  node_bundler   = "esbuild"
+  included_files = ["../node_modules/pdf-parse/**"]
+
+[functions."analyze"]
+  timeout = 26
+
+[[redirects]]
+  from   = "/api/analyze"
+  to     = "/.netlify/functions/analyze"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/api/health"
+  to     = "/.netlify/functions/health"
+  status = 200
+  force  = true
