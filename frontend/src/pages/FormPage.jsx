@@ -289,7 +289,8 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
           </div>
         </div>
 
-        <button
+        {/* TODO: Uncomment button di bawah dan hapus label "Segera Hadir" saat sudah siap */}
+        {/* <button
           className={`${styles.submitBtn} ${!isValid ? styles.submitDisabled : ''}`}
           onClick={handleSubmit}
           disabled={loading}
@@ -305,7 +306,11 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
               <ArrowIcon />
             </>
           )}
-        </button>
+        </button> */}
+
+        <div className={styles.comingSoonBtn}>
+          🚧 Segera Hadir
+        </div>
 
         {loading && (
           <div className={styles.loadingNote}>
