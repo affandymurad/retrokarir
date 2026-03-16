@@ -16,7 +16,7 @@ export default function Navbar({ isDark, onToggleDark, aiMode, onToggleAi, onHom
             className={styles.aiToggle}
             style={{textDecoration: 'none'}}
           >
-            👤 Affandy Murad
+          👤 <span className={styles.portfolioText}>Affandy Murad</span>
           </a>
           {/* AI Mode Toggle */}
           <button className={styles.aiToggle} onClick={onToggleAi} title={`Mode: ${aiMode.toUpperCase()}`}>

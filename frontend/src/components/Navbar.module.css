@@ -107,3 +107,12 @@
   gap: 10px;
   text-decoration: none;
 }
+
+.portfolioText {
+  display: inline;
+}
+
+@media (max-width: 600px) {
+  .portfolioText { display: none; }
+  .aiToggle { padding: 6px 10px; }
+}
