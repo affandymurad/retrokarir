@@ -2,121 +2,135 @@
 
 Website analisis kesenjangan keterampilan (Skill Gap Analysis) berbasis AI untuk pasar tenaga kerja Indonesia.
 
+🌐 **Live:** [retrokarir.netlify.app](https://retrokarir.netlify.app)
+
 ---
 
 ## 🏗️ Struktur Proyek
 
 ```
 retrokarir/
-├── backend/          # Express.js API Server
-│   ├── src/
-│   │   └── index.js  # Main server
-│   ├── .env          # Konfigurasi API Key (EDIT INI!)
-│   └── package.json
-├── frontend/         # React + Vite
+├── netlify/
+│   └── functions/
+│       ├── analyze.js    # Serverless function — AI analysis
+│       └── health.js     # Health check endpoint
+├── frontend/             # React + Vite
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
 │   │   ├── hooks/
 │   │   └── styles/
 │   └── package.json
-└── README.md
+├── netlify.toml          # Konfigurasi build & functions
+├── package.json          # Dependencies untuk functions
+└── .env                  # API Key lokal (JANGAN di-commit!)
 ```
 
 ---
 
-## 🚀 Langkah Setup & Menjalankan
+## 🚀 Langkah Setup Lokal
 
 ### 1. Prasyarat
-- Node.js v20+ (sudah terpenuhi: v20.19.6)
-- npm v10+ (sudah terpenuhi: 10.8.2)
-- API Key Gemini (dari https://aistudio.google.com/app/apikey) **ATAU** Ollama terinstall lokal
+- Node.js v20+
+- npm v10+
+- API Key Gemini dari https://aistudio.google.com/app/apikey
+- Netlify CLI: `npm install -g netlify-cli`
 
 ---
 
-### 2. Install Dependencies
+### 2. Clone & Install Dependencies
 
-**Backend:**
 ```bash
-cd retrokarir/backend
-npm install
-```
+git clone https://github.com/affandymurad/retrokarir.git
+cd retrokarir
 
-**Frontend:**
-```bash
-cd retrokarir/frontend
+# Install dependencies functions (root)
 npm install
+
+# Install dependencies frontend
+cd frontend && npm install && cd ..
 ```
 
 ---
 
-### 3. Konfigurasi API Key Gemini
+### 3. Konfigurasi API Key
 
-Edit file `backend/.env`:
+Buat file `.env` di root folder:
 
 ```env
-PORT=3001
-
-# Ganti dengan API Key asli Anda
 GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
+GEMINI_MODEL=gemini-2.5-flash-preview-04-17
 
-# Untuk Ollama (opsional)
+# Opsional — Ollama lokal
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3
 ```
 
-> ⚠️ **Penting:** Jangan pernah commit file `.env` ke Git!
+> ⚠️ Jangan pernah commit file `.env` ke Git!
 
 ---
 
 ### 4. Menjalankan Development Server
 
-Buka **dua terminal terpisah**:
-
-**Terminal 1 — Backend:**
+**Terminal 1 — Vite:**
 ```bash
-cd retrokarir/backend
+cd frontend
 npm run dev
-# Server berjalan di http://localhost:3001
+# Frontend berjalan di http://localhost:5173
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2 — Netlify Dev (Functions + Proxy):**
 ```bash
-cd retrokarir/frontend
-npm run dev
-# Website berjalan di http://localhost:5173
+cd retrokarir   # root
+netlify dev --target-port 5173
+# Buka http://localhost:8888
 ```
 
-Buka browser ke **http://localhost:5173** ✅
+> Gunakan http://localhost:8888 (bukan 5173) agar `/api/*` terhubung ke Netlify Functions.
 
 ---
 
 ### 5. (Opsional) Menggunakan Ollama
 
-Jika ingin menggunakan AI lokal tanpa biaya:
-
 1. Install Ollama: https://ollama.com/download
-2. Jalankan: `ollama pull llama3` (atau model lain)
-3. Pastikan Ollama berjalan: `ollama serve`
+2. `ollama pull llama3`
+3. `ollama serve`
 4. Di website, klik tombol AI Mode di navbar untuk switch ke Ollama
+
+---
+
+## ☁️ Deploy ke Netlify
+
+### Otomatis via GitHub
+
+1. Push ke GitHub:
+```bash
+git add .
+git commit -m "feat: deploy Retrokarir"
+git push
+```
+
+2. Buka app.netlify.com → Add new site → Import from Git → GitHub
+3. Pilih repo `retrokarir` — build settings otomatis terbaca dari `netlify.toml`
+4. Tambah Environment Variables di Netlify Dashboard:
+
+| Key | Value |
+|-----|-------|
+| `GEMINI_API_KEY` | API Key Anda |
+| `GEMINI_MODEL` | `gemini-2.5-flash-preview-04-17` |
+
+5. Klik Deploy site ✅
 
 ---
 
 ## 🎮 Cara Penggunaan
 
-1. Buka http://localhost:5173
-2. Klik **"Mulai Analisis Gratis"**
-3. Upload CV dalam format **PDF** (maks 10MB)
-4. Isi semua data diri:
-   - Nama lengkap
-   - Tanggal lahir
-   - Jenis kelamin
-   - Tujuan menggunakan Retrokarir (min 100 karakter)
-   - Preferensi tipe kerja (bisa pilih beberapa)
-   - Lokasi impian (tekan Enter/koma untuk tambah)
-5. Klik **"Analisa Sekarang"**
-6. Tunggu beberapa saat, hasil akan muncul
-7. Klik **"Download PDF"** untuk simpan laporan
+1. Buka website
+2. Klik "Mulai Analisis Gratis"
+3. Upload CV dalam format PDF (maks 10MB)
+4. Isi semua data diri
+5. Klik "Analisa Sekarang"
+6. Klik "Download PDF" untuk simpan laporan
 
 ---
 
@@ -124,9 +138,10 @@ Jika ingin menggunakan AI lokal tanpa biaya:
 
 | Error | Solusi |
 |-------|--------|
-| `GEMINI_API_KEY belum dikonfigurasi` | Edit file `backend/.env` dan isi API Key |
-| `Cannot connect to server` | Pastikan backend sudah berjalan di port 3001 |
+| `GEMINI_API_KEY belum dikonfigurasi` | Set env var di Netlify Dashboard atau file `.env` |
+| `404 Not Found` di `/api/analyze` | Pastikan Netlify Dev berjalan di port 8888 |
 | `Teks PDF tidak dapat dibaca` | Pastikan PDF berisi teks (bukan scan/image) |
+| `Function timeout` | Gemini butuh waktu — timeout diset 26 detik |
 | `Ollama error` | Pastikan Ollama berjalan (`ollama serve`) |
 
 ---
@@ -136,11 +151,12 @@ Jika ingin menggunakan AI lokal tanpa biaya:
 | Layer | Teknologi |
 |-------|-----------|
 | Frontend | React 18 + Vite 5 |
-| Backend | Express.js |
-| AI (Cloud) | gemini-2.0-flash |
+| Serverless Functions | Netlify Functions (esbuild) |
+| AI (Cloud) | Google Gemini 2.5 Flash |
 | AI (Local) | Ollama (llama3/mistral/dll) |
 | PDF Parsing | pdf-parse |
 | Styling | CSS Modules + Custom Properties |
+| Deploy | Netlify |
 
 ---
 
@@ -149,10 +165,21 @@ Jika ingin menggunakan AI lokal tanpa biaya:
 - ✅ Dark/Light mode (auto-detect dari device)
 - ✅ Toggle AI: Gemini ↔ Ollama
 - ✅ Drag & drop PDF upload
-- ✅ Validasi form lengkap
-- ✅ Chip input untuk lokasi
-- ✅ Analisis 4 pilar kompetensi
+- ✅ Analisis 4 pilar kompetensi (Kognitif, Interpersonal, Self-leadership, Digital)
+- ✅ Saran pengembangan skill (pelatihan, kompetisi, sertifikasi)
+- ✅ Standar KBJI 4-digit
 - ✅ Risk assessment otomasi
 - ✅ Action plan 3 horizon waktu
 - ✅ Download laporan sebagai PDF
+- ✅ Zero data retention — CV tidak disimpan
 - ✅ Responsive (mobile-friendly)
+
+---
+
+## 🔒 Privasi & Keamanan
+
+CV dan data pribadi pengguna **tidak disimpan** di server manapun. Semua data hanya diproses sementara dalam memori selama analisis berlangsung, kemudian langsung dibuang. Tidak ada data yang digunakan untuk keperluan selain analisis skill gap yang diminta pengguna.
+
+---
+
+*Dibuat oleh [Affandy Murad](https://affandymurad.github.io) @ 2026*
