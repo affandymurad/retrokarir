@@ -291,6 +291,7 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
 
         {/* TODO: Uncomment button di bawah dan hapus label "Segera Hadir" saat sudah siap */}
         {/* <button
+        <button
           className={`${styles.submitBtn} ${!isValid ? styles.submitDisabled : ''}`}
           onClick={handleSubmit}
           disabled={loading}
