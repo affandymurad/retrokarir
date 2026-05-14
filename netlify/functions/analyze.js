@@ -495,7 +495,7 @@ async function analyzeWithGemini(prompt) {
       temperature: 0.35,
       topP: 0.85,
       topK: 40,
-      maxOutputTokens: 16000,
+      maxOutputTokens: 8192,
       responseMimeType: 'application/json',
     },
   });
@@ -566,6 +566,20 @@ function parseMultipart(buffer, boundary) {
 }
 
 export const handler = async event => {
+  // Selalu kembalikan JSON — jangan biarkan Netlify return HTML error page
+  try {
+    return await handleRequest(event);
+  } catch (err) {
+    console.error('Unhandled top-level error:', err);
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'Terjadi kesalahan tak terduga. Coba lagi.' }),
+    };
+  }
+};
+
+async function handleRequest(event) {
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -579,6 +593,14 @@ export const handler = async event => {
       statusCode: 405,
       headers: CORS_HEADERS,
       body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
+
+  if (!event.body) {
+    return {
+      statusCode: 400,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'Request body kosong' }),
     };
   }
 
