@@ -59,7 +59,7 @@ Buat file `.env` di root folder:
 
 ```env
 GEMINI_API_KEY=AIzaSy_YOUR_ACTUAL_KEY_HERE
-GEMINI_MODEL=gemini-2.5-flash-preview-04-17
+GEMINI_MODEL=gemini-3-flash-preview
 
 # Opsional — Ollama lokal
 OLLAMA_BASE_URL=http://localhost:11434
@@ -117,7 +117,7 @@ git push
 | Key | Value |
 |-----|-------|
 | `GEMINI_API_KEY` | API Key Anda |
-| `GEMINI_MODEL` | `gemini-2.5-flash-preview-04-17` |
+| `GEMINI_MODEL` | `gemini-3-flash-preview` |
 
 5. Klik Deploy site ✅
 

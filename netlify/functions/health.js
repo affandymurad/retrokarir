@@ -40,7 +40,7 @@ export const handler = async event => {
         process.env.ANTHROPIC_API_KEY,
         'YOUR_ANTHROPIC_API_KEY_HERE'
       ),
-      geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+      geminiModel: process.env.GEMINI_MODEL || 'gemini-3-flash-preview',
       anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
     }),
   };

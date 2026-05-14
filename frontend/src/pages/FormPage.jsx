@@ -1,88 +1,50 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styles from './FormPage.module.css';
 
-const LOADING_TIPS = {
-  id: [
-    {
-      icon: '💡',
-      text: '"Investasi terbaik yang bisa kamu lakukan adalah investasi pada diri sendiri."',
-      author: '— Warren Buffett'
-    },
-    {
-      icon: '🌱',
-      text: '"Pendidikan adalah senjata paling ampuh yang bisa kamu gunakan untuk mengubah dunia."',
-      author: '— Nelson Mandela'
-    },
-    {
-      icon: '🎯',
-      text: '"Jangan takut melepaskan yang baik demi mengejar yang jauh lebih besar."',
-      author: '— John D. Rockefeller'
-    },
-    {
-      icon: '🔥',
-      text: '"Orang-orang yang luar biasa memiliki satu kesamaan: mereka memanfaatkan waktu sebaik mungkin."',
-      author: '— Carl Sandburg'
-    },
-    {
-      icon: '🚀',
-      text: '"Kesuksesan adalah jumlah dari usaha-usaha kecil yang diulang hari demi hari."',
-      author: '— Robert Collier'
-    },
-    {
-      icon: '✨',
-      text: '"Kamu tidak perlu menjadi hebat untuk memulai, tapi kamu harus memulai untuk menjadi hebat."',
-      author: '— Zig Ziglar'
-    },
-  ],
-  en: [
-    {
-      icon: '💡',
-      text: '"The only way to do great work is to love what you do. If you haven\'t found it yet, keep looking."',
-      author: '— Steve Jobs'
-    },
-    {
-      icon: '🌱',
-      text: '"Education is the most powerful weapon which you can use to change the world."',
-      author: '— Nelson Mandela'
-    },
-    {
-      icon: '🎯',
-      text: '"The future belongs to those who learn more skills and combine them in creative ways."',
-      author: '— Robert Greene'
-    },
-    {
-      icon: '🔥',
-      text: '"It always seems impossible until it\'s done."',
-      author: '— Nelson Mandela'
-    },
-    {
-      icon: '🚀',
-      text: '"An investment in knowledge pays the best interest."',
-      author: '— Benjamin Franklin'
-    },
-    {
-      icon: '✨',
-      text: '"You don\'t have to be great to start, but you have to start to be great."',
-      author: '— Zig Ziglar'
-    },
-  ],
-};
+const QUOTES = [
+  { text: 'Berikan aku 1000 orang tua, niscaya akan kucabut Semeru dari akarnya. Berikan aku 10 pemuda, niscaya akan kuguncangkan dunia.', author: 'Ir. Soekarno', role: 'Proklamator & Presiden ke-1 RI' },
+  { text: 'Ilmu yang tidak diamalkan bagaikan pohon yang tidak berbuah.', author: 'Mohammad Hatta', role: 'Proklamator & Wakil Presiden ke-1 RI' },
+  { text: 'Tidak penting apa agama atau sukumu, kalau kamu bisa melakukan sesuatu yang baik untuk semua orang, orang tidak pernah tanya apa agamamu.', author: 'KH. Abdurrahman Wahid (Gus Dur)', role: 'Presiden ke-4 RI & Tokoh Pluralisme' },
+  { text: 'Reformasi bukan hanya tentang perubahan sistem, tapi perubahan cara kita berpikir dan bertindak.', author: 'Sri Mulyani Indrawati', role: 'Mantan Direktur Pelaksana Bank Dunia' },
+  { text: 'Diplomasi yang baik bukan hanya tentang berbicara, tetapi tentang mendengar dan memahami.', author: 'Retno Marsudi', role: 'Utusan Khusus Sekjen PBB' },
+  { text: 'Kalau tidak berani, jangan mimpi jadi pemimpin.', author: 'Susi Pudjiastuti', role: 'Tokoh Maritim & Mantan Menteri Kelautan' },
+  { text: 'Jadilah pelopor, jangan hanya menjadi penonton.', author: 'Tri Rismaharini', role: 'Birokrat & Mantan Menteri Sosial' },
+  { text: 'Berjuanglah untuk hidup, karena dengan berjuang maka hidup menjadi bermakna.', author: 'Pramoedya Ananta Toer', role: 'Sastrawan & Intelektual Humanis' },
+  { text: 'Habis gelap terbitlah terang.', author: 'R.A. Kartini', role: 'Tokoh Emansipasi & Pemikir Pendidikan Perempuan' },
+  { text: 'Jika seseorang memiliki kemauan dan ia mencoba, ia sering kali akan meraihnya.', author: 'B.J. Habibie', role: 'Bapak Teknologi Indonesia & Presiden ke-3 RI' },
+  { text: 'Ilmu pengetahuan tanpa agama adalah pincang. Agama tanpa ilmu pengetahuan adalah buta.', author: 'Buya Hamka', role: 'Ulama, Sastrawan & Intelektual Islam' },
+  { text: 'Kerja keras adalah cara terbaik untuk membuktikan bahwa kamu layak.', author: 'Nadiem Makarim', role: 'Teknokrat & Pendiri Gojek' },
+  { text: 'Najwa percaya bahwa jurnalisme yang baik bukan hanya menyampaikan fakta, tetapi juga menginspirasi perubahan.', author: 'Najwa Shihab', role: 'Jurnalis, Presenter & Pendiri Narasi' },
+  { text: 'Sains adalah bahasa universal yang menghubungkan kita semua.', author: 'Prof. Adi Utarini', role: 'Peneliti & Ilmuwan Kesehatan Dunia' },
+  { text: 'Education is the most powerful weapon which you can use to change the world.', author: 'Nelson Mandela', role: 'Mantan Presiden Afrika Selatan & Pejuang Kemanusiaan' },
+  { text: 'Be the change you wish to see in the world.', author: 'Mahatma Gandhi', role: 'Pemimpin Spiritual & Tokoh Perdamaian India' },
+  { text: 'Success is not final, failure is not fatal: it is the courage to continue that counts.', author: 'Winston Churchill', role: 'Mantan Perdana Menteri Britania Raya' },
+  { text: 'The future belongs to those who believe in the beauty of their dreams.', author: 'Barack Obama', role: 'Mantan Presiden Amerika Serikat' },
+  { text: 'Hard work is the foundation of everything. Talent alone is not enough.', author: 'Lee Kuan Yew', role: 'Bapak Bangsa & Perdana Menteri Pertama Singapura' },
+  { text: 'Watch your thoughts, for they will become actions. Watch your actions, for they become habits.', author: 'Margaret Thatcher', role: 'Mantan Perdana Menteri Britania Raya' },
+  { text: 'Innovation distinguishes between a leader and a follower.', author: 'Steve Jobs', role: 'Pendiri Apple' },
+  { text: "It's fine to celebrate success, but it is more important to heed the lessons of failure.", author: 'Bill Gates', role: 'Pendiri Microsoft & Filantropis' },
+  { text: 'When something is important enough, you do it even if the odds are not in your favor.', author: 'Elon Musk', role: 'Pendiri SpaceX & Tesla' },
+  { text: "We're in the business of helping people change their lives.", author: 'Tim Cook', role: 'CEO Apple' },
+  { text: "What we want is to see the child in pursuit of knowledge, and not knowledge in pursuit of the child.", author: 'Sundar Pichai', role: 'CEO Google & Alphabet' },
+  { text: 'Imagination is more important than knowledge.', author: 'Albert Einstein', role: 'Fisikawan Teoretis' },
+  { text: 'Nothing in life is to be feared, it is only to be understood.', author: 'Marie Curie', role: 'Fisikawan & Kimiawan Perintis Radiasi' },
+  { text: 'Genius is one percent inspiration, ninety-nine percent perspiration.', author: 'Thomas Edison', role: 'Penemu & Pengusaha Teknologi Klasik' },
+  { text: 'Talk is cheap. Show me the code.', author: 'Linus Torvalds', role: 'Pencipta Sistem Operasi Linux' },
+  { text: 'Carina percaya bahwa ilmu pengetahuan tidak mengenal batas negara.', author: 'Carina Joe', role: 'Ilmuwan Indonesia & Pemegang Paten Vaksin Global' },
+  { text: 'Listrik bukan kemewahan, listrik adalah hak dasar setiap manusia.', author: 'Tri Mumpuni', role: 'Teknokrat Pemberdaya Listrik Pedesaan' },
+];
 
-function LoadingOverlay({ aiMode, modelName, outputLang }) {
-  const [tipIdx, setTipIdx] = useState(0);
-  const tips = LOADING_TIPS[outputLang] || LOADING_TIPS.id;
+function LoadingOverlay({ modelName }) {
+  const [qIdx, setQIdx] = useState(0);
 
   useEffect(() => {
-    setTipIdx(0);
-  }, [outputLang]);
-
-  useEffect(() => {
-    const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 3500);
+    const t = setInterval(() => setQIdx(i => (i + 1) % QUOTES.length), 4000);
     return () => clearInterval(t);
-  }, [tips]);
+  }, []);
 
-  const tip = tips[tipIdx];
-  const label = modelName || (aiMode === 'gemini' ? 'Gemini AI' : 'Sonnet AI');
+  const q = QUOTES[qIdx];
+  const label = modelName || 'Gemini AI';
 
   return (
     <div className={styles.loadingOverlay}>
@@ -103,11 +65,11 @@ function LoadingOverlay({ aiMode, modelName, outputLang }) {
         </div>
 
         {/* Rotating quote */}
-        <div className={styles.loadingTipWrap} key={tipIdx}>
-          <span className={styles.loadingTipIcon}>{tip.icon}</span>
-          <div>
-            <p className={styles.loadingTipText}>{tip.text}</p>
-            <p className={styles.loadingTipAuthor}>{tip.author}</p>
+        <div className={styles.loadingQuoteWrap} key={qIdx}>
+          <p className={styles.loadingQuoteText}>"{q.text}"</p>
+          <div className={styles.loadingQuoteAuthor}>
+            <span className={styles.loadingQuoteName}>{q.author}</span>
+            <span className={styles.loadingQuoteRole}>{q.role}</span>
           </div>
         </div>
 
@@ -121,16 +83,14 @@ function LoadingOverlay({ aiMode, modelName, outputLang }) {
 
 const WORK_TYPES = ['Full Time', 'Part Time', 'Remote', 'Hybrid'];
 
-export default function FormPage({ onSubmit, aiMode }) {
+export default function FormPage({ onSubmit }) {
   const [pdfFile, setPdfFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [modelName, setModelName] = useState('');
   const [gender, setGender] = useState('');
-  const [intention, setIntention] = useState('');
   const [workTypes, setWorkTypes] = useState([]);
-  const [outputLang, setOutputLang] = useState('id');
   const [locationInput, setLocationInput] = useState('');
   const [locations, setLocations] = useState([]);
   const [errors, setErrors] = useState({});
@@ -193,7 +153,6 @@ export default function FormPage({ onSubmit, aiMode }) {
     if (!fullName.trim()) errs.fullName = 'Nama lengkap wajib diisi';
     if (!birthDate) errs.birthDate = 'Tanggal lahir wajib diisi';
     if (!gender) errs.gender = 'Jenis kelamin wajib dipilih';
-if (intention.trim().length < 50) errs.intention = `Minimal 50 karakter (saat ini: ${intention.trim().length})`;
     if (workTypes.length === 0) errs.workTypes = 'Pilih minimal satu tipe kerja';
     if (locations.length === 0 && !locationInput.trim()) errs.locations = 'Tambahkan minimal satu lokasi';
     setErrors(errs);
@@ -213,18 +172,16 @@ if (intention.trim().length < 50) errs.intention = `Minimal 50 karakter (saat in
     setLoading(true);
     const formData = new FormData();
     formData.append('cv', pdfFile);
-    formData.append('aiMode', aiMode);
-    formData.append('outputLang', outputLang);
     formData.append('userData', JSON.stringify({
-      fullName, birthDate, gender, intention, workTypes, dreamLocations: finalLocations, outputLang
+      fullName, birthDate, gender, workTypes, dreamLocations: finalLocations
     }));
 
     try {
       const res = await fetch('/api/analyze', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Server error');
-      onSubmit(data.data, { fullName, birthDate, gender, aiMode, modelName: data.modelName || aiMode, outputLang });
-      setModelName(data.modelName || aiMode);
+      onSubmit(data.data, { fullName, birthDate, gender, modelName: data.modelName || 'Gemini AI' });
+      setModelName(data.modelName || 'Gemini AI');
     } catch (err) {
       // Sanitize raw API error — ambil kalimat pertama sebelum tanda kurung siku
       const raw = err.message || 'Terjadi kesalahan server';
@@ -236,11 +193,11 @@ if (intention.trim().length < 50) errs.intention = `Minimal 50 karakter (saat in
     }
   };
 
-const isValid = pdfFile && fullName && birthDate && gender && intention.trim().length >= 50 && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
+const isValid = pdfFile && fullName && birthDate && gender && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
 
   return (
     <>
-      {loading && <LoadingOverlay aiMode={aiMode} modelName={modelName} outputLang={outputLang} />}
+      {loading && <LoadingOverlay modelName={modelName} />}
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.header}>
@@ -327,27 +284,6 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
           </div>
         </div>
 
-        {/* Intention */}
-        <div className={styles.section}>
-          <label className={styles.sectionLabel}>
-            Tujuan Menggunakan Retrokarir <span className={styles.required}>*</span>
-          </label>
-          <div className={styles.textareaWrap}>
-            <textarea
-              className={`${styles.textarea} ${errors.intention ? styles.inputError : ''}`}
-              placeholder="Ceritakan tujuan dan harapan Anda menggunakan Retrokarir... (mis: ingin berpindah karier dari akuntansi ke data science, ingin tahu celah skill untuk posisi product manager, dll)"
-              value={intention}
-              onChange={e => intention.length < 500 || e.target.value.length < intention.length ? setIntention(e.target.value) : null}
-              maxLength={500}
-              rows={4}
-            />
-            <div className={`${styles.charCount} ${intention.length < 50 ? styles.charLow : ''}`}>
-              {intention.length}/500
-            </div>
-          </div>
-          {errors.intention && <span className={styles.error}>{errors.intention}</span>}
-        </div>
-
         {/* Work Types */}
         <div className={styles.section}>
           <label className={styles.sectionLabel}>
@@ -395,41 +331,6 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
           {errors.locations && <span className={styles.error}>{errors.locations}</span>}
         </div>
 
-        {/* Output Language */}
-        <div className={styles.section}>
-          <label className={styles.sectionLabel}>
-            Bahasa Output Laporan <span className={styles.required}>*</span>
-          </label>
-          <div className={styles.radioGroup}>
-            {[
-              { value: 'id', label: 'Bahasa Indonesia', flag: '🇮🇩', desc: 'Default' },
-              { value: 'en', label: 'English', flag: '🇬🇧', desc: 'Bahasa Inggris' },
-            ].map(opt => (
-              <label
-                key={opt.value}
-                className={`${styles.radioItem} ${outputLang === opt.value ? styles.radioActive : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="outputLang"
-                  value={opt.value}
-                  checked={outputLang === opt.value}
-                  onChange={() => setOutputLang(opt.value)}
-                  hidden
-                />
-                <span className={styles.radioCircle}>
-                  {outputLang === opt.value && <span className={styles.radioInner} />}
-                </span>
-                <span className={styles.radioFlag}>{opt.flag}</span>
-                <span className={styles.radioLabel}>{opt.label}</span>
-                {opt.value === 'id' && (
-                  <span className={styles.radioDefault}>Default</span>
-                )}
-              </label>
-            ))}
-          </div>
-        </div>
-
         {errors.submit && (
           <div className={styles.submitError}>
             <span className={styles.submitErrorIcon}>⚠️</span>
@@ -458,9 +359,7 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
           <ArrowIcon />
         </button>
 
-        <div className={styles.comingSoonBtn}>
-          🚧 Segera Hadir
-        </div>
+
       </div>
     </div>
     </>

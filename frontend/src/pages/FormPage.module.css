@@ -350,21 +350,6 @@
 
 .submitDisabled { opacity: 0.45; cursor: not-allowed; }
 
-.comingSoonBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 14px;
-  border-radius: var(--radius-xl);
-  background: var(--bg-muted);
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-top: 10px;
-  border: 1px dashed var(--border);
-}
-
 .spinner {
   width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.3);
@@ -380,79 +365,6 @@
   color: var(--text-muted);
   margin-top: 14px;
   font-style: italic;
-}
-
-/* Radio group (output language) */
-.radioGroup {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.radioItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  transition: all 0.2s;
-  font-weight: 500;
-  user-select: none;
-}
-
-.radioItem:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
-}
-
-.radioActive {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
-  font-weight: 600;
-}
-
-.radioCircle {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: border-color 0.2s;
-}
-
-.radioInner {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  display: block;
-}
-
-.radioFlag { font-size: 1.1rem; line-height: 1; }
-
-.radioLabel { font-size: 0.9rem; }
-
-.radioDefault {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-muted);
-  border: 1px solid var(--border);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-left: 2px;
 }
 
 /* Responsive */
@@ -558,23 +470,46 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-.loadingTipWrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+.loadingQuoteWrap {
+  width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 16px 20px;
+  padding: 20px 22px;
   margin-bottom: 16px;
-  min-height: 72px;
-  width: 100%;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
   animation: fadeInUp 0.4s ease;
 }
 
-.loadingTipIcon  { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
-.loadingTipText  { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; text-align: left; font-style: italic; margin-bottom: 6px; }
-.loadingTipAuthor { font-size: 0.78rem; color: var(--accent); font-weight: 700; text-align: left; letter-spacing: 0.1px; }
+.loadingQuoteText {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.6;
+  font-style: italic;
+  text-align: center;
+}
+
+.loadingQuoteAuthor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.loadingQuoteName {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.loadingQuoteRole {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
 
 .loadingNote {
   font-size: 0.75rem;

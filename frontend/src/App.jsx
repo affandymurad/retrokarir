@@ -10,9 +10,6 @@ export default function App() {
   const [page, setPage] = useState('landing'); // landing | form | result
   const [result, setResult] = useState(null);
   const [meta, setMeta] = useState(null);
-  const [aiMode, setAiMode] = useState('gemini');
-
-  const toggleAi = () => setAiMode(m => m === 'gemini' ? 'sonnet' : 'gemini');
 
   const handleFormSubmit = (data, userData) => {
     setResult(data);
@@ -27,8 +24,6 @@ export default function App() {
       <Navbar
         isDark={isDark}
         onToggleDark={toggle}
-        aiMode={aiMode}
-        onToggleAi={toggleAi}
         onHome={() => setPage("landing")}
       />
       {page === 'landing' && (
@@ -37,7 +32,6 @@ export default function App() {
       {page === 'form' && (
         <FormPage
           onSubmit={handleFormSubmit}
-          aiMode={aiMode}
         />
       )}
       {page === 'result' && (

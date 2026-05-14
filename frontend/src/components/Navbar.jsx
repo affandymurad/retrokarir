@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Navbar.module.css';
 
-export default function Navbar({ isDark, onToggleDark, aiMode, onToggleAi, onHome }) {
+export default function Navbar({ isDark, onToggleDark, onHome }) {
   return (
     <nav className={styles.nav}>
       <div className={styles.inner}>
@@ -18,20 +18,6 @@ export default function Navbar({ isDark, onToggleDark, aiMode, onToggleAi, onHom
           >
           👤 <span className={styles.portfolioText}>Affandy Murad</span>
           </a>
-          {/* AI Mode Toggle */}
-          <button className={styles.aiToggle} onClick={onToggleAi} title={`Mode: ${aiMode.toUpperCase()}`}>
-            {aiMode === 'gemini' ? (
-              <>
-                <GeminiIcon />
-                <span>Gemini</span>
-              </>
-            ) : (
-              <>
-                <SonnetIcon />
-                <span>Sonnet</span>
-              </>
-            )}
-          </button>
           {/* Dark Mode Toggle */}
           <button className={styles.themeBtn} onClick={onToggleDark} aria-label="Toggle theme">
             {isDark ? <SunIcon /> : <MoonIcon />}
@@ -39,24 +25,6 @@ export default function Navbar({ isDark, onToggleDark, aiMode, onToggleAi, onHom
         </div>
       </div>
     </nav>
-  );
-}
-
-function GeminiIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2C12 2 8 7 8 12C8 17 12 22 12 22C12 22 16 17 16 12C16 7 12 2 12 2Z" fill="#4285F4"/>
-      <path d="M2 12C2 12 7 8 12 8C17 8 22 12 22 12C22 12 17 16 12 16C7 16 2 12 2 12Z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
-function SonnetIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" fill="#D97757" stroke="#D97757" strokeWidth="0.5" strokeLinejoin="round"/>
-      <path d="M12 7v10M8 9.5l8 5M16 9.5l-8 5" stroke="#fff" strokeWidth="1.2" strokeLinecap="round"/>
-    </svg>
   );
 }
 
