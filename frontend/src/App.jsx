@@ -12,7 +12,7 @@ export default function App() {
   const [meta, setMeta] = useState(null);
   const [aiMode, setAiMode] = useState('gemini');
 
-  const toggleAi = () => setAiMode(m => m === 'gemini' ? 'ollama' : 'gemini');
+  const toggleAi = () => setAiMode(m => m === 'gemini' ? 'sonnet' : 'gemini');
 
   const handleFormSubmit = (data, userData) => {
     setResult(data);

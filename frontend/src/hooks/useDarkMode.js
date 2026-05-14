@@ -8,7 +8,11 @@ export function useDarkMode() {
   });
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     localStorage.setItem('retrokarir-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 

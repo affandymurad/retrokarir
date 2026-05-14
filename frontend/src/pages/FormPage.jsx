@@ -1,5 +1,123 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styles from './FormPage.module.css';
+
+const LOADING_TIPS = {
+  id: [
+    {
+      icon: '💡',
+      text: '"Investasi terbaik yang bisa kamu lakukan adalah investasi pada diri sendiri."',
+      author: '— Warren Buffett'
+    },
+    {
+      icon: '🌱',
+      text: '"Pendidikan adalah senjata paling ampuh yang bisa kamu gunakan untuk mengubah dunia."',
+      author: '— Nelson Mandela'
+    },
+    {
+      icon: '🎯',
+      text: '"Jangan takut melepaskan yang baik demi mengejar yang jauh lebih besar."',
+      author: '— John D. Rockefeller'
+    },
+    {
+      icon: '🔥',
+      text: '"Orang-orang yang luar biasa memiliki satu kesamaan: mereka memanfaatkan waktu sebaik mungkin."',
+      author: '— Carl Sandburg'
+    },
+    {
+      icon: '🚀',
+      text: '"Kesuksesan adalah jumlah dari usaha-usaha kecil yang diulang hari demi hari."',
+      author: '— Robert Collier'
+    },
+    {
+      icon: '✨',
+      text: '"Kamu tidak perlu menjadi hebat untuk memulai, tapi kamu harus memulai untuk menjadi hebat."',
+      author: '— Zig Ziglar'
+    },
+  ],
+  en: [
+    {
+      icon: '💡',
+      text: '"The only way to do great work is to love what you do. If you haven\'t found it yet, keep looking."',
+      author: '— Steve Jobs'
+    },
+    {
+      icon: '🌱',
+      text: '"Education is the most powerful weapon which you can use to change the world."',
+      author: '— Nelson Mandela'
+    },
+    {
+      icon: '🎯',
+      text: '"The future belongs to those who learn more skills and combine them in creative ways."',
+      author: '— Robert Greene'
+    },
+    {
+      icon: '🔥',
+      text: '"It always seems impossible until it\'s done."',
+      author: '— Nelson Mandela'
+    },
+    {
+      icon: '🚀',
+      text: '"An investment in knowledge pays the best interest."',
+      author: '— Benjamin Franklin'
+    },
+    {
+      icon: '✨',
+      text: '"You don\'t have to be great to start, but you have to start to be great."',
+      author: '— Zig Ziglar'
+    },
+  ],
+};
+
+function LoadingOverlay({ aiMode, modelName, outputLang }) {
+  const [tipIdx, setTipIdx] = useState(0);
+  const tips = LOADING_TIPS[outputLang] || LOADING_TIPS.id;
+
+  useEffect(() => {
+    setTipIdx(0);
+  }, [outputLang]);
+
+  useEffect(() => {
+    const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 3500);
+    return () => clearInterval(t);
+  }, [tips]);
+
+  const tip = tips[tipIdx];
+  const label = modelName || (aiMode === 'gemini' ? 'Gemini AI' : 'Sonnet AI');
+
+  return (
+    <div className={styles.loadingOverlay}>
+      <div className={styles.loadingContent}>
+        {/* Spinner ring */}
+        <div className={styles.spinnerWrap}>
+          <div className={styles.spinnerRing} />
+          <div className={styles.spinnerIcon}>✦</div>
+        </div>
+
+        {/* Title */}
+        <h2 className={styles.loadingTitle}>Menganalisis CV...</h2>
+
+        {/* Model badge */}
+        <div className={styles.loadingBadge}>
+          <span className={styles.loadingBadgeDot} />
+          {label}
+        </div>
+
+        {/* Rotating quote */}
+        <div className={styles.loadingTipWrap} key={tipIdx}>
+          <span className={styles.loadingTipIcon}>{tip.icon}</span>
+          <div>
+            <p className={styles.loadingTipText}>{tip.text}</p>
+            <p className={styles.loadingTipAuthor}>{tip.author}</p>
+          </div>
+        </div>
+
+        <p className={styles.loadingNote}>
+          Proses ini membutuhkan 30–90 detik tergantung kompleksitas CV Anda.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const WORK_TYPES = ['Full Time', 'Part Time', 'Remote', 'Hybrid'];
 
@@ -8,9 +126,11 @@ export default function FormPage({ onSubmit, aiMode }) {
   const [dragging, setDragging] = useState(false);
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [modelName, setModelName] = useState('');
   const [gender, setGender] = useState('');
   const [intention, setIntention] = useState('');
   const [workTypes, setWorkTypes] = useState([]);
+  const [outputLang, setOutputLang] = useState('id');
   const [locationInput, setLocationInput] = useState('');
   const [locations, setLocations] = useState([]);
   const [errors, setErrors] = useState({});
@@ -94,15 +214,17 @@ if (intention.trim().length < 50) errs.intention = `Minimal 50 karakter (saat in
     const formData = new FormData();
     formData.append('cv', pdfFile);
     formData.append('aiMode', aiMode);
+    formData.append('outputLang', outputLang);
     formData.append('userData', JSON.stringify({
-      fullName, birthDate, gender, intention, workTypes, dreamLocations: finalLocations
+      fullName, birthDate, gender, intention, workTypes, dreamLocations: finalLocations, outputLang
     }));
 
     try {
       const res = await fetch('/api/analyze', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Server error');
-      onSubmit(data.data, { fullName, birthDate, gender, aiMode });
+      onSubmit(data.data, { fullName, birthDate, gender, aiMode, modelName: data.modelName || aiMode, outputLang });
+      setModelName(data.modelName || aiMode);
     } catch (err) {
       // Sanitize raw API error — ambil kalimat pertama sebelum tanda kurung siku
       const raw = err.message || 'Terjadi kesalahan server';
@@ -117,6 +239,8 @@ if (intention.trim().length < 50) errs.intention = `Minimal 50 karakter (saat in
 const isValid = pdfFile && fullName && birthDate && gender && intention.trim().length >= 50 && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
 
   return (
+    <>
+      {loading && <LoadingOverlay aiMode={aiMode} modelName={modelName} outputLang={outputLang} />}
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.header}>
@@ -271,6 +395,41 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
           {errors.locations && <span className={styles.error}>{errors.locations}</span>}
         </div>
 
+        {/* Output Language */}
+        <div className={styles.section}>
+          <label className={styles.sectionLabel}>
+            Bahasa Output Laporan <span className={styles.required}>*</span>
+          </label>
+          <div className={styles.radioGroup}>
+            {[
+              { value: 'id', label: 'Bahasa Indonesia', flag: '🇮🇩', desc: 'Default' },
+              { value: 'en', label: 'English', flag: '🇬🇧', desc: 'Bahasa Inggris' },
+            ].map(opt => (
+              <label
+                key={opt.value}
+                className={`${styles.radioItem} ${outputLang === opt.value ? styles.radioActive : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="outputLang"
+                  value={opt.value}
+                  checked={outputLang === opt.value}
+                  onChange={() => setOutputLang(opt.value)}
+                  hidden
+                />
+                <span className={styles.radioCircle}>
+                  {outputLang === opt.value && <span className={styles.radioInner} />}
+                </span>
+                <span className={styles.radioFlag}>{opt.flag}</span>
+                <span className={styles.radioLabel}>{opt.label}</span>
+                {opt.value === 'id' && (
+                  <span className={styles.radioDefault}>Default</span>
+                )}
+              </label>
+            ))}
+          </div>
+        </div>
+
         {errors.submit && (
           <div className={styles.submitError}>
             <span className={styles.submitErrorIcon}>⚠️</span>
@@ -290,36 +449,21 @@ const isValid = pdfFile && fullName && birthDate && gender && intention.trim().l
         </div>
 
         {/* TODO: Uncomment button di bawah dan hapus label "Segera Hadir" saat sudah siap */}
-        {/* <button
         <button
           className={`${styles.submitBtn} ${!isValid ? styles.submitDisabled : ''}`}
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? (
-            <>
-              <span className={styles.spinner} />
-              Menganalisis CV...
-            </>
-          ) : (
-            <>
-              Analisa Sekarang
-              <ArrowIcon />
-            </>
-          )}
-        </button> */}
+          Analisa Sekarang
+          <ArrowIcon />
+        </button>
 
         <div className={styles.comingSoonBtn}>
           🚧 Segera Hadir
         </div>
-
-        {loading && (
-          <div className={styles.loadingNote}>
-            AI sedang membaca dan menganalisis CV Anda. Proses ini membutuhkan beberapa saat...
-          </div>
-        )}
       </div>
     </div>
+    </>
   );
 }
 

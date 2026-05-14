@@ -27,8 +27,8 @@ export default function Navbar({ isDark, onToggleDark, aiMode, onToggleAi, onHom
               </>
             ) : (
               <>
-                <OllamaIcon />
-                <span>Ollama</span>
+                <SonnetIcon />
+                <span>Sonnet</span>
               </>
             )}
           </button>
@@ -51,13 +51,11 @@ function GeminiIcon() {
   );
 }
 
-function OllamaIcon() {
+function SonnetIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"/>
-      <circle cx="9" cy="10" r="2" fill="currentColor"/>
-      <circle cx="15" cy="10" r="2" fill="currentColor"/>
-      <path d="M9 15 Q12 18 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" fill="#D97757" stroke="#D97757" strokeWidth="0.5" strokeLinejoin="round"/>
+      <path d="M12 7v10M8 9.5l8 5M16 9.5l-8 5" stroke="#fff" strokeWidth="1.2" strokeLinecap="round"/>
     </svg>
   );
 }
