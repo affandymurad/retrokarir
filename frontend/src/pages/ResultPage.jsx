@@ -750,12 +750,12 @@ ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8f
                 .filter(([k]) => k !== 'catatan')
                 .map(([loc, val], i) => (
                   <div key={i} className={styles.marketRow}>
-                    <span className={styles.marketLoc}>{loc}</span>
-                    <div className={styles.marketVal}>{val}</div>
+                    <span className={styles.marketLoc}>{safeString(loc)}</span>
+                    <div className={styles.marketVal}>{safeString(val)}</div>
                   </div>
                 ))}
               {result.marketValue.catatan && (
-                <p className={styles.marketNote}>{result.marketValue.catatan}</p>
+                <p className={styles.marketNote}>{safeString(result.marketValue.catatan)}</p>
               )}
             </div>
           </section>

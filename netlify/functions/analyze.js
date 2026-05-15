@@ -41,7 +41,7 @@ function normalizeArray(value) {
 
 // Gemini kadang menghasilkan nilai per-lokasi sebagai nested object
 // { "rentangGaji": "...", "posisiAcuan": "..." } alih-alih string.
-// Fungsi ini meratakan semua nilai menjadi string agar aman di-render React.
+// Fungsi ini meratakan SEMUA bentuk nilai menjadi string agar aman di-render React.
 function normalizeMarketValue(marketValue) {
   if (!marketValue || typeof marketValue !== 'object') return { catatan: '' };
 
@@ -52,23 +52,58 @@ function normalizeMarketValue(marketValue) {
       normalized.catatan = typeof val === 'string' ? val : '';
     } else if (typeof val === 'string') {
       normalized[key] = val;
+    } else if (typeof val === 'number') {
+      normalized[key] = String(val);
+    } else if (Array.isArray(val)) {
+      // Array of strings — join them
+      normalized[key] = val
+        .filter(v => v != null)
+        .map(v => (typeof v === 'string' ? v : safeStringValue(v)))
+        .join(' ');
     } else if (typeof val === 'object' && val !== null) {
+      // Nested object — flatten all known fields in priority order
       const parts = [];
+      const knownKeys = [
+        'baseline', 'baselineRealistis', 'rentangGaji', 'gaji',
+        'upperMarket', 'upper', 'upperMarketNote',
+        'posisiAcuan', 'level', 'levelRole',
+        'catatan', 'konteks', 'note', 'keterangan',
+        'syaratNaik', 'kondisi',
+      ];
 
-      if (val.rentangGaji) parts.push(val.rentangGaji);
-      if (val.posisiAcuan) parts.push(`(${val.posisiAcuan})`);
-
-      if (parts.length === 0) {
-        const allStrings = Object.values(val).filter(v => typeof v === 'string');
-        parts.push(allStrings.join(' – '));
+      // First, try known keys in order
+      for (const k of knownKeys) {
+        if (val[k] && typeof val[k] === 'string' && val[k].trim()) {
+          parts.push(val[k].trim());
+        }
       }
 
-      normalized[key] = parts.join(' ');
+      // Then, collect any remaining string values not yet included
+      if (parts.length === 0) {
+        for (const v of Object.values(val)) {
+          if (typeof v === 'string' && v.trim()) {
+            parts.push(v.trim());
+          }
+        }
+      }
+
+      normalized[key] = parts.join(' ') || JSON.stringify(val);
     }
   }
 
   if (!normalized.catatan) normalized.catatan = '';
   return normalized;
+}
+
+function safeStringValue(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') {
+    return Object.values(v)
+      .filter(x => typeof x === 'string')
+      .join(' ');
+  }
+  return String(v);
 }
 
 function normalizeUserData(rawUserData) {
@@ -226,11 +261,17 @@ KETENTUAN FIELD LAMA:
   Jika membahas sertifikasi yang banyak, arahkan ke bukti penerapan proyek nyata, metrik dampak, portfolio, atau studi kasus.
 - marketValue: hanya untuk lokasi target: ${locationsStr}.
 - Nama lokasi harus bersih dan terbaca. Contoh: "Jakarta", "Singapura", "Kuala Lumpur", "San Francisco".
-- Nilai tiap lokasi WAJIB string biasa, bukan object.
+- KRITIS: Nilai tiap lokasi di marketValue HARUS berupa STRING BIASA (bukan object, bukan array, bukan nested JSON).
+- DILARANG KERAS: jangan pernah menulis { "rentangGaji": "...", "posisiAcuan": "...", "baseline": "...", "upperMarket": "..." } atau bentuk object apapun sebagai nilai lokasi.
+- CONTOH FORMAT YANG BENAR (ikuti persis pola ini):
+  "Jakarta": "Baseline realistis Rp 18–25 juta/bulan untuk level mid-senior di product company atau digital banking. Upper-market Rp 28–35 juta/bulan dapat dicapai jika ada metrik dampak bisnis dan kepemimpinan tim yang terbukti. Software house atau perusahaan non-tech umumnya berada di rentang Rp 12–18 juta/bulan.",
+  "Singapura": "Baseline realistis SGD 5.500–7.000/bulan untuk posisi mid-senior di perusahaan regional. Upper-market SGD 8.000–9.500/bulan dapat dicapai jika portofolio arsitektur dan komunikasi Inggris kuat. Estimasi berlaku untuk onsite/relokasi, bukan remote dari Indonesia."
+- CONTOH FORMAT YANG SALAH (jangan lakukan ini):
+  "Jakarta": { "rentangGaji": "Rp 18-25 juta", "posisiAcuan": "Mid-senior" }
 - marketValue wajib berisi rentang gaji realistis, level role, alasan/rationale, dan kondisi peningkatan salary jika ada.
 - marketValue harus membedakan baseline realistis vs upper-market. Jangan menampilkan angka atas seolah-olah standar umum.
-- Jangan membuat format pendek seperti hanya "Rp 18-30 juta/bulan".
-- Jangan gunakan nested object di marketValue.
+- Jangan membuat format pendek seperti hanya "Rp 18-30 juta/bulan". Tulis kalimat lengkap dengan konteks.
+- INGAT: marketValue adalah flat object. Setiap key adalah nama lokasi, setiap value adalah satu string panjang. Tidak ada nesting apapun kecuali key "catatan".
 - ringkasanAwam: setiap sub-field maksimal 3 kalimat.
 - kataKunciJobSeeker.posisi: 6-10 jabatan, tanpa lokasi.
 - kataKunciJobSeeker.keahlian: 8-12 skill teknis dan non-teknis.
