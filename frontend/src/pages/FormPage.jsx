@@ -83,6 +83,34 @@ function LoadingOverlay({ modelName }) {
 
 const WORK_TYPES = ['Full Time', 'Part Time', 'Remote', 'Hybrid'];
 
+// Konversi string tanggal dari berbagai format ke ISO yyyy-mm-dd.
+// Safari iOS tidak support input[type=date] — user ketik manual dengan format bervariasi.
+function parseBirthDateToISO(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const s = raw.trim();
+  // Sudah yyyy-mm-dd (format standar dari input[type=date] yang support)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // dd/mm/yyyy atau dd-mm-yyyy atau dd.mm.yyyy
+  const dmy = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+  // Fallback: parse generik, ambil komponen manual untuk hindari timezone shift
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  return null;
+}
+
+// Deteksi apakah browser support input[type=date] natively.
+// Safari iOS tidak support — value selalu '' sehingga user harus ketik manual.
+function supportsDateInput() {
+  if (typeof document === 'undefined') return true;
+  const i = document.createElement('input');
+  i.setAttribute('type', 'date');
+  i.setAttribute('value', 'x');
+  return i.value !== 'x';
+}
+
 export default function FormPage({ onSubmit }) {
   const [pdfFile, setPdfFile] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -95,7 +123,12 @@ export default function FormPage({ onSubmit }) {
   const [locations, setLocations] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [hasDateSupport, setHasDateSupport] = useState(true);
   const fileInputRef = useRef();
+
+  useEffect(() => {
+    setHasDateSupport(supportsDateInput());
+  }, []);
 
   const handleFile = (file) => {
     if (!file) return;
@@ -151,7 +184,11 @@ export default function FormPage({ onSubmit }) {
     const errs = {};
     if (!pdfFile) errs.pdf = 'CV wajib diunggah';
     if (!fullName.trim()) errs.fullName = 'Nama lengkap wajib diisi';
-    if (!birthDate) errs.birthDate = 'Tanggal lahir wajib diisi';
+    if (!birthDate) {
+      errs.birthDate = 'Tanggal lahir wajib diisi';
+    } else if (!parseBirthDateToISO(birthDate)) {
+      errs.birthDate = 'Format tanggal tidak valid. Gunakan DD/MM/YYYY';
+    }
     if (!gender) errs.gender = 'Jenis kelamin wajib dipilih';
     if (workTypes.length === 0) errs.workTypes = 'Pilih minimal satu tipe kerja';
     if (locations.length === 0 && !locationInput.trim()) errs.locations = 'Tambahkan minimal satu lokasi';
@@ -170,17 +207,23 @@ export default function FormPage({ onSubmit }) {
     if (!validate()) return;
 
     setLoading(true);
+
+    // Normalisasi birthDate ke format ISO yyyy-mm-dd agar aman di semua browser termasuk Safari iOS
+    const isoDate = parseBirthDateToISO(birthDate) || birthDate;
+
     const formData = new FormData();
     formData.append('cv', pdfFile);
     formData.append('userData', JSON.stringify({
-      fullName, birthDate, gender, workTypes, dreamLocations: finalLocations
+      fullName, birthDate: isoDate, gender, workTypes, dreamLocations: finalLocations
     }));
 
     try {
-      const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+      // Gunakan absolute URL agar aman di Safari iOS PWA/standalone mode
+      const apiUrl = `${window.location.origin}/api/analyze`;
+      const res = await fetch(apiUrl, { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Server error');
-      onSubmit(data.data, { fullName, birthDate, gender, modelName: data.modelName || 'Gemini AI' });
+      onSubmit(data.data, { fullName, birthDate: isoDate, gender, modelName: data.modelName || 'Gemini AI' });
       setModelName(data.modelName || 'Gemini AI');
     } catch (err) {
       // Sanitize raw API error — ambil kalimat pertama sebelum tanda kurung siku
@@ -256,13 +299,29 @@ const isValid = pdfFile && fullName && birthDate && gender && workTypes.length >
 
           <div className={styles.field}>
             <label className={styles.fieldLabel}>Tanggal Lahir <span className={styles.required}>*</span></label>
-            <input
-              className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
-              type="date"
-              value={birthDate}
-              onChange={e => setBirthDate(e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
-            />
+            {hasDateSupport ? (
+              <input
+                className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
+                type="date"
+                value={birthDate}
+                onChange={e => setBirthDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            ) : (
+              /* Fallback untuk Safari iOS yang tidak support input[type=date] */
+              <input
+                className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/YYYY"
+                value={birthDate}
+                onChange={e => setBirthDate(e.target.value)}
+                maxLength={10}
+              />
+            )}
+            {!hasDateSupport && (
+              <span className={styles.hint}>Contoh: 15/08/1995</span>
+            )}
             {errors.birthDate && <span className={styles.error}>{errors.birthDate}</span>}
           </div>
 
