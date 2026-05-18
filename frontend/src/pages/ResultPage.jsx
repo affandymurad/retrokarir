@@ -27,11 +27,7 @@ const CONFIDENCE_COLOR = {
   Rendah: '#ef4444',
 };
 
-const ROLE_STATUS_COLOR = {
-  'Realistis Sekarang': '#22c55e',
-  'Dekat / Perlu Pembuktian': '#f59e0b',
-  Aspiratif: '#8b5cf6',
-};
+
 
 function safeString(value) {
   if (typeof value === 'string') return value;
@@ -40,6 +36,108 @@ function safeString(value) {
     return Object.values(value).filter(v => typeof v === 'string').join(' ');
   }
   return String(value);
+}
+
+// Kurs perkiraan ke Rupiah. Disinkronkan dengan kurs di prompt backend.
+// Safety net: jika Gemini lupa menyisipkan konversi Rupiah inline,
+// helper ini akan mendeteksi angka mata uang asing dan menambahkan
+// konversi otomatis dalam tanda kurung.
+const IDR_RATES = {
+  USD: 16000,
+  SGD: 11500,
+  MYR: 3500,
+  AED: 4350,
+  QAR: 4400,
+  KWD: 52000,
+  SEK: 1500,
+  EUR: 17500,
+  GBP: 20500,
+  HKD: 2050,
+  JPY: 105,
+  KRW: 12,
+  THB: 450,
+  PHP: 285,
+  CHF: 18500,
+  AUD: 10500,
+  CAD: 11800,
+  NZD: 9700,
+  CNY: 2200,
+  INR: 190,
+};
+
+// Format angka rupiah ke "juta" atau "miliar" yang mudah dibaca.
+// Bulatkan ke nilai yang masuk akal untuk komunikasi gaji.
+function formatIdrShort(rupiah) {
+  const n = Number(rupiah);
+  if (!Number.isFinite(n) || n <= 0) return '';
+
+  if (n >= 1_000_000_000) {
+    const miliar = n / 1_000_000_000;
+    return `${miliar.toFixed(miliar < 10 ? 1 : 0).replace('.', ',')} miliar`;
+  }
+
+  if (n >= 1_000_000) {
+    const juta = n / 1_000_000;
+    return `${Math.round(juta)} juta`;
+  }
+
+  if (n >= 1_000) {
+    return `${Math.round(n / 1_000)} ribu`;
+  }
+
+  return String(Math.round(n));
+}
+
+// Deteksi pola mata uang asing + rentang angka dalam string market value.
+// Tambahkan konversi Rupiah dalam tanda kurung jika belum ada.
+// Contoh input:  "Baseline realistis SGD 5.500–7.000/bulan untuk..."
+// Contoh output: "Baseline realistis SGD 5.500–7.000/bulan (≈ Rp 63–80 juta) untuk..."
+function injectIdrConversion(text) {
+  if (typeof text !== 'string' || !text) return text;
+
+  const currencyCodes = Object.keys(IDR_RATES).join('|');
+  // Match: KODE_MATA_UANG + spasi opsional + angka(rentang opsional)
+  // Angka boleh pakai titik/koma sebagai ribuan: 5.500, 5,500, 12.000
+  // Rentang dipisah – atau - atau ke
+  const pattern = new RegExp(
+    `\\b(${currencyCodes})\\s*([\\d.,]+(?:\\s*[–\\-]\\s*[\\d.,]+)?)`,
+    'g'
+  );
+
+  // Cari semua match terlebih dahulu. Lalu insert konversi setelah satuan
+  // (mis. "/bulan" atau "/tahun") jika ada, agar kalimat tetap natural.
+  // Strategi sederhana: insert tepat setelah match jika belum ada "Rp" atau
+  // "≈" dalam 50 karakter berikutnya.
+  return text.replace(pattern, (match, code, numbers, offset, fullStr) => {
+    // Cek apakah sudah ada konversi Rupiah dalam ~60 karakter setelah match
+    const lookAhead = fullStr.slice(offset + match.length, offset + match.length + 80);
+    if (/\(\s*≈?\s*Rp/i.test(lookAhead) || /Rp\s*[\d.,]/i.test(lookAhead.slice(0, 40))) {
+      return match; // Sudah ada konversi, jangan double
+    }
+
+    const rate = IDR_RATES[code];
+    if (!rate) return match;
+
+    // Parse angka — bisa rentang atau tunggal
+    const parsed = numbers
+      .split(/[–\-]/)
+      .map(s => s.trim().replace(/[.,](?=\d{3}\b)/g, '').replace(',', '.'))
+      .map(s => parseFloat(s))
+      .filter(n => Number.isFinite(n));
+
+    if (parsed.length === 0) return match;
+
+    if (parsed.length === 1) {
+      const idr = parsed[0] * rate;
+      return `${match} (≈ Rp ${formatIdrShort(idr)})`;
+    }
+
+    const idrLow = parsed[0] * rate;
+    const idrHigh = parsed[1] * rate;
+    const lowStr = formatIdrShort(idrLow).replace(/\s*juta$/, '');
+    const highStr = formatIdrShort(idrHigh);
+    return `${match} (≈ Rp ${lowStr}–${highStr})`;
+  });
 }
 
 function clampScore(value) {
@@ -59,6 +157,101 @@ function ScoreBar({ value, color }) {
   );
 }
 
+function FpRadarChart({ data }) {
+  const keys = ['aiResistance', 'leadershipPotential', 'globalMobility', 'technicalDepth'];
+  const labels = ['AI Resistance', 'Leadership', 'Global Mobility', 'Tech Depth'];
+  const cx = 130, cy = 120, r = 85;
+  const angles = keys.map((_, i) => (Math.PI * 2 * i) / keys.length - Math.PI / 2);
+  const pt = (angle, radius) => [
+    cx + radius * Math.cos(angle),
+    cy + radius * Math.sin(angle),
+  ];
+  const scores = keys.map(k => clampScore(data[k]?.skor));
+  const dataPoints = scores.map((s, i) => pt(angles[i], (s / 100) * r));
+  const polyPoints = dataPoints.map(([x, y]) => `${x},${y}`).join(' ');
+  const gridLevels = [25, 50, 75, 100];
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+      <svg width="260" height="240" viewBox="0 0 260 240" style={{ overflow: 'visible' }}>
+        {gridLevels.map(level => {
+          const pts = angles.map(a => pt(a, (level / 100) * r));
+          return (
+            <polygon key={level}
+              points={pts.map(([x, y]) => `${x},${y}`).join(' ')}
+              fill="none" stroke="var(--border, #e2e8f0)" strokeWidth="1"
+            />
+          );
+        })}
+        {angles.map((angle, i) => {
+          const [x, y] = pt(angle, r);
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border, #e2e8f0)" strokeWidth="1" />;
+        })}
+        <polygon points={polyPoints} fill="#3b82f620" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
+        {dataPoints.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r="4" fill="#3b82f6" />
+        ))}
+        {angles.map((angle, i) => {
+          const [x, y] = pt(angle, r + 18);
+          const anchor = Math.abs(Math.cos(angle)) < 0.1 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end';
+          return (
+            <text key={i} x={x} y={y} textAnchor={anchor} fontSize="9.5" fontWeight="700"
+              fill="var(--text-secondary, #64748b)" fontFamily="var(--font-body, sans-serif)">
+              {labels[i]}
+              <tspan x={x} dy="11" fill={getScoreColor(scores[i])} fontWeight="900">{scores[i]}</tspan>
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+const TEMA_COLOR = {
+  'Bahasa Inggris': '#3b82f6',
+  'Metrik Dampak': '#f59e0b',
+  'Kepemimpinan': '#8b5cf6',
+  'Spesialisasi': '#ef4444',
+  'Portfolio': '#22c55e',
+  'Soft Skill': '#06b6d4',
+};
+
+function RoadmapTimeline({ gaps }) {
+  if (!Array.isArray(gaps) || gaps.length === 0) return null;
+  // Distribute gaps across a 12-month timeline: each gap gets a ~2-month slot
+  const months = ['Bln 1–2', 'Bln 3–4', 'Bln 5–6', 'Bln 7–8', 'Bln 9–10', 'Bln 11–12'];
+  const slots = gaps.slice(0, 6).map((gap, i) => ({ gap, month: months[i] || `Bln ${i * 2 + 1}–${i * 2 + 2}` }));
+
+  return (
+    <div style={{ marginTop: '24px' }}>
+      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
+        🗓 Roadmap 12 Bulan
+      </div>
+      <div style={{ position: 'relative', paddingLeft: '16px' }}>
+        {/* vertical line */}
+        <div style={{ position: 'absolute', left: '16px', top: '8px', bottom: '8px', width: '2px', background: 'var(--border)' }} />
+        {slots.map(({ gap, month }, i) => {
+          const color = TEMA_COLOR[gap.temaUtama] || '#64748b';
+          return (
+            <div key={i} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '16px', position: 'relative' }}>
+              {/* dot */}
+              <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, border: '2px solid white', boxShadow: `0 0 0 2px ${color}`, flexShrink: 0, marginTop: '4px', zIndex: 1 }} />
+              <div style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `3px solid ${color}`, borderRadius: '0 10px 10px 0', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{month}</span>
+                  {gap.temaUtama && <span style={{ fontSize: '0.72rem', background: `${color}18`, color, border: `1px solid ${color}44`, borderRadius: '999px', padding: '1px 8px', fontWeight: 700 }}>{gap.temaUtama}</span>}
+                </div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: '3px' }}>{safeString(gap.area)}</div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{safeString(gap.langkah6Bulan)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ResultPage({ result, meta, onBack }) {
   const printRef = useRef();
   const [copiedKey, setCopiedKey] = useState(null);
@@ -72,7 +265,6 @@ export default function ResultPage({ result, meta, onBack }) {
 
   const handleDownload = () => {
     const r = result;
-    const riskColor = RISK_COLOR[r.analisisRisiko?.level] || '#f59e0b';
     const sc = s => s >= 70 ? '#22c55e' : s >= 50 ? '#f59e0b' : '#ef4444';
     const bar = (v, c) => `<div style="height:6px;background:#e2e8f0;border-radius:3px;margin:4px 0 8px;overflow:hidden;"><div style="height:100%;width:${v}%;background:${c};border-radius:3px;"></div></div>`;
     const pill = (t, c='#16a34a', bg='#f0fdf4', b='#bbf7d0') => `<span style="display:inline-block;background:${bg};color:${c};border:1px solid ${b};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;margin:2px 3px 2px 0;">${t}</span>`;
@@ -114,7 +306,7 @@ export default function ResultPage({ result, meta, onBack }) {
                 word-break:break-word;
                 min-width:0;
               ">
-                ${safeString(val)}
+                ${injectIdrConversion(safeString(val))}
               </div>
             </div>
           `).join('')
@@ -127,52 +319,15 @@ export default function ResultPage({ result, meta, onBack }) {
         }).join('')
       : '';
     
-        const evidenceRows = Array.isArray(r.evidenceMapping)
-      ? r.evidenceMapping.map(item => {
-          const c = CONFIDENCE_COLOR[item.tingkatKeyakinan] || '#64748b';
-          return `
-            <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;page-break-inside:avoid;">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:5px;">
-                <strong style="font-size:12px;color:#0f172a;line-height:1.4;">${safeString(item.klaim)}</strong>
-                <span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:999px;padding:2px 8px;font-size:9px;font-weight:800;white-space:nowrap;">${safeString(item.tingkatKeyakinan)}</span>
-              </div>
-              <p style="font-size:11px;color:#475569;line-height:1.55;margin:0 0 3px;"><strong>Bukti CV:</strong> ${safeString(item.buktiCV)}</p>
-              ${item.catatanKalibrasi ? `<p style="font-size:11px;color:#64748b;line-height:1.55;margin:0;"><strong>Kalibrasi:</strong> ${safeString(item.catatanKalibrasi)}</p>` : ''}
-            </div>
-          `;
-        }).join('')
-      : '';
-
-    const roleFitRows = Array.isArray(r.roleFitMatrix)
-      ? r.roleFitMatrix.map(item => {
-          const score = clampScore(item.kecocokan);
-          const c = ROLE_STATUS_COLOR[item.status] || sc(score);
-          return `
-            <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;page-break-inside:avoid;">
-              <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:5px;">
-                <div>
-                  <strong style="font-size:12px;color:#0f172a;line-height:1.4;">${safeString(item.role)}</strong>
-                  <div style="margin-top:3px;">
-                    <span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:999px;padding:2px 8px;font-size:9px;font-weight:800;">${safeString(item.status)}</span>
-                  </div>
-                </div>
-                <strong style="font-size:14px;color:${sc(score)};white-space:nowrap;">${score}%</strong>
-              </div>
-              ${bar(score, sc(score))}
-              <p style="font-size:11px;color:#475569;line-height:1.55;margin:0 0 3px;">${safeString(item.alasan)}</p>
-              <p style="font-size:11px;color:#64748b;line-height:1.55;margin:0;"><strong>Syarat naik level:</strong> ${safeString(item.syaratNaikLevel)}</p>
-            </div>
-          `;
-        }).join('')
-      : '';
-
-    const gapRows = Array.isArray(r.actionableGap)
-      ? r.actionableGap.map(item => `
-        <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;page-break-inside:avoid;">
-          <strong style="font-size:12px;color:#0f172a;display:block;margin-bottom:4px;line-height:1.4;">${safeString(item.area)}</strong>
-          <p style="font-size:11px;color:#475569;line-height:1.55;margin:0 0 3px;"><strong>Dampak:</strong> ${safeString(item.dampak)}</p>
-          <p style="font-size:11px;color:#475569;line-height:1.55;margin:0 0 3px;"><strong>Bukti perlu ditambah:</strong> ${safeString(item.buktiYangPerluDitambah)}</p>
-          <p style="font-size:11px;color:#64748b;line-height:1.55;margin:0;"><strong>6 bulan:</strong> ${safeString(item.langkah6Bulan)}</p>
+    const quickWinsRows = Array.isArray(r.quickWins) && r.quickWins.length > 0
+      ? r.quickWins.map((item, idx) => `
+        <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;page-break-inside:avoid;">
+          <div style="width:24px;height:24px;border-radius:50%;background:#3b82f6;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${idx + 1}</div>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:3px;line-height:1.4;">${safeString(item.aksi)}</div>
+            <p style="font-size:11px;color:#475569;line-height:1.55;margin:0 0 4px;">${safeString(item.alasan)}</p>
+            <span style="font-size:10px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:999px;padding:2px 8px;font-weight:600;">⏱ ${safeString(item.estimasiWaktu)}</span>
+          </div>
         </div>
       `).join('')
       : '';
@@ -226,146 +381,7 @@ ${r.kataKunciJobSeeker?h2('🔍 Kata Kunci Job Seeker')+`<div style="display:fle
   .map(([k,l,c,bg,b])=>{const items=r.kataKunciJobSeeker[k];if(!items?.length)return'';return`<div><div style="font-size:10px;font-weight:800;color:${c};text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">${l}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${items.map(it=>pill(it,c,bg,b)).join('')}</div></div>`}).join('')
 }</div>`:''}
 
-${r.futureProofScore?h2('🛡 Future-Proof & Risiko Otomasi')+`<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:10px;">${fpRows}</div>${
-  r.analisisRisiko?`<div style="
-    border:1px solid #e2e8f0;
-    border-top:3px solid ${riskColor};
-    border-radius:10px;
-    padding:16px;
-    break-inside:avoid;
-    page-break-inside:avoid;
-  ">
-    <div style="
-      font-size:10px;
-      font-weight:900;
-      color:#64748b;
-      text-transform:uppercase;
-      letter-spacing:.9px;
-      margin-bottom:10px;
-    ">
-      Risiko Otomasi
-    </div>
-
-    <div style="
-      display:flex;
-      align-items:flex-start;
-      gap:12px;
-      margin-bottom:10px;
-      flex-wrap:wrap;
-    ">
-      <span style="
-        background:${riskColor}18;
-        color:${riskColor};
-        border:1px solid ${riskColor}44;
-        border-radius:999px;
-        padding:3px 12px;
-        font-weight:800;
-        font-size:11px;
-        line-height:1.4;
-      ">
-        ${r.analisisRisiko.level}
-      </span>
-
-      <div style="display:flex;flex-direction:column;gap:3px;">
-        <span style="
-          font-size:24px;
-          font-weight:900;
-          color:${riskColor};
-          letter-spacing:-1px;
-          line-height:1;
-        ">
-          ${r.analisisRisiko.persentaseRisiko}%
-        </span>
-
-        ${r.analisisRisiko.konteksBenchmark ? `
-          <span style="
-            font-size:10px;
-            color:#94a3b8;
-            font-style:italic;
-            line-height:1.35;
-          ">
-            📊 ${r.analisisRisiko.konteksBenchmark}
-          </span>
-        ` : ''}
-      </div>
-    </div>
-
-    <div style="
-      height:6px;
-      background:#e2e8f0;
-      border-radius:999px;
-      overflow:hidden;
-      margin:4px 0 10px;
-    ">
-      <div style="
-        width:${r.analisisRisiko.persentaseRisiko}%;
-        height:100%;
-        background:${riskColor};
-        border-radius:999px;
-      "></div>
-    </div>
-
-    <p style="
-      font-size:12px;
-      color:#475569;
-      line-height:1.6;
-      margin:0 0 8px;
-    ">
-      ${r.analisisRisiko.penjelasan}
-    </p>
-
-    <div>
-      ${r.analisisRisiko.faktorRisiko?.map(f => {
-        const t = typeof f === 'string'
-          ? f
-          : Object.values(f).filter(v => typeof v === 'string').join(' ');
-        return pill(t, '#92400e', '#fffbeb', '#fde68a');
-      }).join('') || ''}
-    </div>
-  </div>`:''
-}`:''}
-
-${r.careerRisk?h2('⚠ Strategic Career Risk & Solusi')+`<div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
-  <div style="display:grid;grid-template-columns:1fr 1fr;">
-    <div style="padding:14px 16px;border-right:1px solid #f1f5f9;"><div style="font-size:10px;font-weight:800;color:#ef4444;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">Salary Ceiling Risk</div><p style="font-size:12px;color:#334155;line-height:1.6;margin:0;">${r.careerRisk.salaryCeilingRisk}</p></div>
-    <div style="padding:14px 16px;"><div style="font-size:10px;font-weight:800;color:#f59e0b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">Stagnation Risk</div><p style="font-size:12px;color:#334155;line-height:1.6;margin:0;">${r.careerRisk.stagnationRisk}</p></div>
-  </div>
-  ${r.careerRisk.penyebab?.length?`<div style="padding:12px 16px;border-top:1px solid #f1f5f9;"><div style="font-size:10px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Faktor Penyebab</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${r.careerRisk.penyebab.map(f=>pill(f,'#92400e','#fffbeb','#fde68a')).join('')}</div></div>`:''}
-  ${r.careerRisk.solusiStrategis?.length?`<div style="padding:14px 16px;border-top:1px solid #f1f5f9;"><div style="font-size:10px;font-weight:800;color:#22c55e;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Solusi Strategis</div>${r.careerRisk.solusiStrategis.map((s,i)=>`<div style="display:flex;gap:10px;margin-bottom:8px;${i<r.careerRisk.solusiStrategis.length-1?'padding-bottom:8px;border-bottom:1px solid #f1f5f9;':''}"><span style="width:20px;height:20px;border-radius:50%;background:#22c55e;color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">${i+1}</span><p style="font-size:12px;color:#334155;line-height:1.6;margin:0;">${s}</p></div>`).join('')}</div>`:''}
-</div>`:''}
-
-${evidenceRows ? h2('🧾 Evidence Mapping') + `
-  <div style="
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    overflow:visible;
-    padding:0 16px;
-  ">
-    ${evidenceRows}
-  </div>
-` : ''}
-
-${roleFitRows ? h2('🎯 Role Fit Matrix') + `
-  <div style="
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    overflow:visible;
-    padding:0 16px;
-  ">
-    ${roleFitRows}
-  </div>
-` : ''}
-
-${gapRows ? h2('🧩 Actionable Gap') + `
-  <div style="
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    overflow:visible;
-    padding:0 16px;
-  ">
-    ${gapRows}
-  </div>
-` : ''}
+${r.futureProofScore?h2('🛡 Future-Proof Score')+`<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:10px;">${fpRows}</div>`:''}
 
 ${cvRows ? h2('📝 Saran Perbaikan CV') + `
   <div style="
@@ -406,6 +422,13 @@ ${r.marketValue && Object.keys(r.marketValue).length > 1 ? h2('💰 Estimasi Mar
 
 ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8fafc);border:2px solid #3b82f6;border-radius:14px;padding:22px 26px;margin-top:28px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:18px;">💡</span><span style="font-size:13px;font-weight:900;color:#3b82f6;letter-spacing:-.3px;white-space:nowrap;">Rekomendasi Akhir</span></div><p style="font-size:13px;line-height:1.8;color:#0f172a;">${r.rekomendasiAkhir}</p></div>`:''}
 
+${quickWinsRows ? h2('⚡ Mulai Minggu Ini') + `
+  <p style="font-size:11px;color:#64748b;margin:0 0 10px;font-style:italic;line-height:1.55;">Tiga langkah kecil yang bisa dilakukan sekarang — tanpa menunggu kondisi sempurna.</p>
+  <div style="border:1px solid #e2e8f0;border-radius:10px;padding:0 16px;">
+    ${quickWinsRows}
+  </div>
+` : ''}
+
 <div style="text-align:center;font-size:10px;color:#94a3b8;margin-top:36px;padding-top:14px;border-top:1px solid #e2e8f0;">
   Dibuat oleh <strong style="color:#475569;">Retrokarir</strong> · AI Career Intelligence Advisor · ${new Date().toLocaleDateString('id-ID',{year:'numeric',month:'long',day:'numeric'})} · oleh <a href="https://affandymurad.github.io/" style="color:#3b82f6;text-decoration:none;font-weight:700;">Affandy Murad</a> @ 2026
 </div></body></html>`;
@@ -431,7 +454,6 @@ ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8f
   };
 
   const p = result.pemetaanKompetensi;
-  const riskColor = RISK_COLOR[result.analisisRisiko?.level] || '#f59e0b';
 
   return (
     <div className={styles.page}>
@@ -488,11 +510,40 @@ ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8f
           </section>
         )}
 
-        {/* 2 — Kata Kunci Job Seeker */}
+        {/* 3 — Future-Proof Score */}
+        {result.futureProofScore && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>🛡 Future-Proof Score</h2>
+            <FpRadarChart data={result.futureProofScore} />
+            <div className={styles.fpGrid}>
+              {Object.entries(FP_LABELS).map(([key, { label, icon }]) => {
+                const d = result.futureProofScore[key];
+                if (!d) return null;
+                const scoreC = getScoreColor(d.skor);
+                return (
+                  <div key={key} className={styles.fpCard}>
+                    <div className={styles.fpHeader}>
+                      <span className={styles.fpIcon}>{icon}</span>
+                      <span className={styles.fpLabel}>{label}</span>
+                      <span className={styles.fpScore} style={{color: scoreC}}>{d.skor}</span>
+                    </div>
+                    <ScoreBar value={d.skor} color={scoreC} />
+                    {d.keterangan && <p className={styles.fpNote}>{d.keterangan}</p>}
+                  </div>
+                );
+              })}
+            </div>
+
+          </section>
+        )}
+
+        {/* 4 — Kata Kunci Job Seeker */}
         {result.kataKunciJobSeeker && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>🔍 Kata Kunci Job Seeker</h2>
-            <p className={styles.kataKunciHint}>Klik tiap item untuk menyalin — tempel langsung ke LinkedIn, Jobstreet, Glints.</p>
+            <h2 className={styles.sectionTitle}>🔍 Kata Kunci untuk LinkedIn & Job Portal</h2>
+            <p className={styles.kataKunciHint}>
+              Tempel kata kunci ini ke headline LinkedIn, deskripsi Jobstreet/Glints, atau ringkasan CV kamu agar lebih mudah ditemukan recruiter. Klik untuk menyalin.
+            </p>
             <div className={styles.kataKunciGroups}>
               {[
                 { key:'posisi',   label:'Posisi / Jabatan', icon:'💼', color:'#22c55e' },
@@ -523,190 +574,6 @@ ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8f
                   </div>
                 );
               })}
-            </div>
-          </section>
-        )}
-
-        {/* 3 — Future-Proof + Risiko Otomasi */}
-        {result.futureProofScore && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>🛡 Future-Proof & Risiko Otomasi</h2>
-            <div className={styles.fpGrid}>
-              {Object.entries(FP_LABELS).map(([key, { label, icon }]) => {
-                const d = result.futureProofScore[key];
-                if (!d) return null;
-                const scoreC = getScoreColor(d.skor);
-                return (
-                  <div key={key} className={styles.fpCard}>
-                    <div className={styles.fpHeader}>
-                      <span className={styles.fpIcon}>{icon}</span>
-                      <span className={styles.fpLabel}>{label}</span>
-                      <span className={styles.fpScore} style={{color: scoreC}}>{d.skor}</span>
-                    </div>
-                    <ScoreBar value={d.skor} color={scoreC} />
-                    {d.keterangan && <p className={styles.fpNote}>{d.keterangan}</p>}
-                  </div>
-                );
-              })}
-            </div>
-
-            {result.analisisRisiko && (
-              <div className={styles.riskOtomasiCard} style={{'--risk-color': riskColor}}>
-                <div className={styles.riskOtomasiLabel}>Risiko Otomasi</div>
-                <div className={styles.riskHeader}>
-                  <span className={styles.riskBadge} style={{background:`${riskColor}18`, color:riskColor}}>
-                    {result.analisisRisiko.level}
-                  </span>
-                  <div className={styles.riskPctWrap}>
-                    <span className={styles.riskPct}>{result.analisisRisiko.persentaseRisiko}%</span>
-                    {result.analisisRisiko.konteksBenchmark && (
-                      <span className={styles.riskBenchmark}>📊 {result.analisisRisiko.konteksBenchmark}</span>
-                    )}
-                  </div>
-                </div>
-                <div className={styles.riskBar}>
-                  <div className={styles.riskBarFill} style={{width:`${result.analisisRisiko.persentaseRisiko}%`, background:riskColor}} />
-                </div>
-                <p className={styles.riskDesc}>{result.analisisRisiko.penjelasan}</p>
-                {result.analisisRisiko.faktorRisiko?.length > 0 && (
-                  <div className={styles.riskFactors}>
-                    {result.analisisRisiko.faktorRisiko.map((f, i) => {
-                      const text = typeof f==='string' ? f : Object.values(f).filter(v=>typeof v==='string').join(' ');
-                      return <span key={i} className={styles.riskFactor}>{text}</span>;
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* 4 — Strategic Career Risk */}
-        {result.careerRisk && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>⚠ Strategic Career Risk & Solusi</h2>
-            <div className={styles.riskFullCard}>
-              <div className={styles.riskRiskRow}>
-                <div className={styles.riskRiskItem} style={{'--risk-accent':'#ef4444'}}>
-                  <div className={styles.riskRiskLabel}>Salary Ceiling Risk</div>
-                  <p className={styles.riskRiskText}>{result.careerRisk.salaryCeilingRisk}</p>
-                </div>
-                <div className={styles.riskRiskItem} style={{'--risk-accent':'#f59e0b'}}>
-                  <div className={styles.riskRiskLabel}>Stagnation Risk</div>
-                  <p className={styles.riskRiskText}>{result.careerRisk.stagnationRisk}</p>
-                </div>
-              </div>
-              {result.careerRisk.penyebab?.length > 0 && (
-                <div className={styles.riskPenyebab}>
-                  <div className={styles.riskPenyebabLabel}>Faktor Penyebab</div>
-                  <div className={styles.riskFactors}>
-                    {result.careerRisk.penyebab.map((f, i) => (
-                      <span key={i} className={styles.riskFactor}>{f}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {result.careerRisk.solusiStrategis?.length > 0 && (
-                <div className={styles.solusiList}>
-                  <div className={styles.solusiLabel}>Solusi Strategis</div>
-                  {result.careerRisk.solusiStrategis.map((s, i) => (
-                    <div key={i} className={styles.solusiItem}>
-                      <div className={styles.solusiNum}>{i + 1}</div>
-                      <p className={styles.solusiText}>{s}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-                {/* 5 — Evidence Mapping */}
-        {Array.isArray(result.evidenceMapping) && result.evidenceMapping.length > 0 && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>🧾 Evidence Mapping</h2>
-            <p className={styles.objectiveHint}>
-              Bagian ini memisahkan klaim karier, bukti dari CV, dan tingkat keyakinannya agar laporan tidak sekadar terasa memuji.
-            </p>
-
-            <div className={styles.evidenceList}>
-              {result.evidenceMapping.map((item, i) => {
-                const color = CONFIDENCE_COLOR[item.tingkatKeyakinan] || '#64748b';
-
-                return (
-                  <div key={i} className={styles.evidenceItem} style={{ '--ev-color': color }}>
-                    <div className={styles.evidenceHeader}>
-                      <strong>{safeString(item.klaim)}</strong>
-                      <span className={styles.confidenceBadge}>{safeString(item.tingkatKeyakinan)}</span>
-                    </div>
-                    <p><span>Bukti CV:</span> {safeString(item.buktiCV)}</p>
-                    {item.catatanKalibrasi && (
-                      <p><span>Kalibrasi:</span> {safeString(item.catatanKalibrasi)}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* 6 — Role Fit Matrix */}
-        {Array.isArray(result.roleFitMatrix) && result.roleFitMatrix.length > 0 && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>🎯 Role Fit Matrix</h2>
-            <p className={styles.objectiveHint}>
-              Matriks ini membedakan role yang realistis saat ini, role dekat yang perlu pembuktian, dan role aspiratif.
-            </p>
-
-            <div className={styles.roleFitList}>
-              {result.roleFitMatrix.map((item, i) => {
-                const score = clampScore(item.kecocokan);
-                const scoreColor = getScoreColor(score);
-                const statusColor = ROLE_STATUS_COLOR[item.status] || scoreColor;
-
-                return (
-                  <div key={i} className={styles.roleFitItem} style={{ '--status-color': statusColor }}>
-                    <div className={styles.roleFitTop}>
-                      <div>
-                        <div className={styles.roleFitRole}>{safeString(item.role)}</div>
-                        <span className={styles.roleFitStatus}>{safeString(item.status)}</span>
-                      </div>
-                      <div className={styles.roleFitScore} style={{ color: scoreColor }}>{score}%</div>
-                    </div>
-
-                    <ScoreBar value={score} color={scoreColor} />
-
-                    <p className={styles.roleFitReason}>{safeString(item.alasan)}</p>
-                    <p className={styles.roleFitNeed}>
-                      <strong>Syarat naik level:</strong> {safeString(item.syaratNaikLevel)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* 7 — Actionable Gap */}
-        {Array.isArray(result.actionableGap) && result.actionableGap.length > 0 && (
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>🧩 Actionable Gap</h2>
-            <p className={styles.objectiveHint}>
-              Gap berikut bukan kelemahan permanen, tetapi bukti tambahan yang perlu dibangun agar nilai pasar lebih kuat.
-            </p>
-
-            <div className={styles.gapGrid}>
-              {result.actionableGap.map((item, i) => (
-                <div key={i} className={styles.gapCard}>
-                  <div className={styles.gapNum}>{i + 1}</div>
-                  <div className={styles.gapBody}>
-                    <div className={styles.gapArea}>{safeString(item.area)}</div>
-                    <p><strong>Dampak:</strong> {safeString(item.dampak)}</p>
-                    <p><strong>Bukti perlu ditambah:</strong> {safeString(item.buktiYangPerluDitambah)}</p>
-                    <p><strong>Langkah 6 bulan:</strong> {safeString(item.langkah6Bulan)}</p>
-                  </div>
-                </div>
-              ))}
             </div>
           </section>
         )}
@@ -745,13 +612,16 @@ ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8f
         {result.marketValue && Object.keys(result.marketValue).length > 1 && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>💰 Estimasi Market Value</h2>
+            <p className={styles.objectiveHint}>
+              Estimasi konservatif-rasional berdasarkan bukti CV, bukan angka ideal. Konversi Rupiah dalam tanda kurung memakai kurs perkiraan dan bisa berubah — gunakan sebagai gambaran kasar, bukan angka final.
+            </p>
             <div className={styles.marketCard}>
               {Object.entries(result.marketValue)
                 .filter(([k]) => k !== 'catatan')
                 .map(([loc, val], i) => (
                   <div key={i} className={styles.marketRow}>
                     <span className={styles.marketLoc}>{safeString(loc)}</span>
-                    <div className={styles.marketVal}>{safeString(val)}</div>
+                    <div className={styles.marketVal}>{injectIdrConversion(safeString(val))}</div>
                   </div>
                 ))}
               {result.marketValue.catatan && (
@@ -770,6 +640,28 @@ ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8f
                 <div className={styles.finalLabel}>Rekomendasi Akhir</div>
                 <p className={styles.finalText}>{result.rekomendasiAkhir}</p>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* 11 — Quick Wins */}
+        {Array.isArray(result.quickWins) && result.quickWins.length > 0 && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>⚡ Mulai Minggu Ini</h2>
+            <p className={styles.objectiveHint}>
+              Tiga langkah kecil yang bisa kamu lakukan sekarang — tanpa harus menunggu kondisi sempurna.
+            </p>
+            <div className={styles.quickWinsList}>
+              {result.quickWins.map((item, i) => (
+                <div key={i} className={styles.quickWinItem}>
+                  <div className={styles.quickWinNum}>{i + 1}</div>
+                  <div className={styles.quickWinBody}>
+                    <div className={styles.quickWinAksi}>{safeString(item.aksi)}</div>
+                    <p className={styles.quickWinAlasan}>{safeString(item.alasan)}</p>
+                    <span className={styles.quickWinTime}>⏱ {safeString(item.estimasiWaktu)}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}

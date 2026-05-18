@@ -1383,3 +1383,169 @@
     transform: translateY(0);
   }
 }
+/* ── Quick Wins ─────────────────────────────────────── */
+.quickWinsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quickWinItem {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid #22c55e;
+  border-radius: var(--radius-xl);
+  padding: 16px 18px;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.quickWinItem:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.quickWinNum {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.quickWinBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.quickWinAksi {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.quickWinAlasan {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+
+.quickWinTime {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #22c55e;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-full);
+  padding: 2px 10px;
+  display: inline-block;
+}
+
+/* ── Glossary ─────────────────────────────────────── */
+.glossaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.glossaryItem {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 14px 16px;
+}
+
+.glossaryTerm {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 5px;
+  line-height: 1.3;
+}
+
+.glossaryDef {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.55;
+}
+
+@media (max-width: 600px) {
+  .glossaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Gap temaUtama badge ─────────────────────────────── */
+.gapAreaRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.temaBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 2px 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Sudah Bagus ─────────────────────────────────────── */
+.sudahBagusList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sudahBagusItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid #bbf7d0;
+  border-left: 3px solid #22c55e;
+  border-radius: var(--radius-xl);
+  padding: 12px 16px;
+}
+
+.sudahBagusCheck {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.sudahBagusItem p {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.55;
+}

@@ -136,6 +136,7 @@ function buildPrompt(cvText, userData) {
     fullName,
     birthDate,
     gender,
+    intention,
     workTypes,
     dreamLocations,
     outputLang = 'id',
@@ -200,6 +201,7 @@ Usia: ${age} tahun (${level})
 Gender: ${gender}
 Tipe Kerja Diinginkan: ${workTypesStr}
 Lokasi Target: ${locationsStr}
+Tujuan Analisis: ${intention || '-'}
 
 ATURAN OUTPUT:
 - Output HANYA JSON valid. Tanpa markdown, tanpa teks pembuka, tanpa teks penutup.
@@ -224,6 +226,8 @@ ATURAN OUTPUT:
 - Semua skor harus integer 0-100.
 - Panduan skor: ${scoreGuide}
 - Jangan memberi skor lebih dari 85 untuk Senior Professional.
+- KONSISTENSI SKOR: Untuk CV yang sama, skor antar generasi harus stabil. Hindari variasi liar (misal: skor 65 di satu generasi, 60 di generasi berikutnya). Pegang prinsip ini: skor harus mencerminkan bukti faktual di CV, bukan mood narasi. Jika ragu antara dua nilai berdekatan (misal 60 vs 65), selalu pilih nilai yang lebih dekat dengan kelipatan 5 berdasarkan kekuatan bukti CV. Skor untuk area dengan bukti kuat dan stabil → kelipatan 5 yang lebih tinggi; skor untuk area dengan bukti parsial/sertifikasi saja → kelipatan 5 yang lebih rendah. Ini membantu menjaga determinism antar generasi.
+- KONSISTENSI ESTIMASI GAJI: Sama untuk estimasi gaji. Pegang ke median yang dapat dijustifikasi dari bukti CV. Hindari menggeser baseline ±20% antar generasi untuk profil yang sama.
 - Untuk role AI Engineer, Cybersecurity Specialist, Engineering Manager, atau Solution Architect, jangan jadikan klaim utama jika CV hanya menunjukkan sertifikasi atau pengalaman parsial. Jadikan sebagai jalur transisi atau target bersyarat.
 - Nada ringkasan awam: hangat, semi-formal, profesional, dan jujur. Hindari slang seperti "keren banget", "coba deh", "jarang lho", "mantap", "yuk", "nih".
 
@@ -259,29 +263,46 @@ KETENTUAN FIELD LAMA:
 - careerRisk.solusiStrategis: tepat 3 paragraf naratif SMART, bukan tabel, masing-masing 2-3 kalimat.
   Paragraf solusi harus realistis, tidak menggurui, dan tidak memakai istilah keras seperti "professional student".
   Jika membahas sertifikasi yang banyak, arahkan ke bukti penerapan proyek nyata, metrik dampak, portfolio, atau studi kasus.
-- marketValue: hanya untuk lokasi target: ${locationsStr}.
+- BATAS ATAS MUTLAK PER LOKASI (jangan pernah dilampaui tanpa bukti luar biasa):
+  Jakarta: baseline maks Rp 30 juta/bulan, upper-market maks Rp 45 juta/bulan untuk senior lead dengan bukti lengkap.
+  Singapura: baseline maks SGD 7.000/bulan untuk non-bigtech; upper-market maks SGD 10.000/bulan hanya jika bukti arsitektur/leadership sangat kuat.
+  Kuala Lumpur: baseline maks MYR 12.000/bulan; upper-market maks MYR 18.000/bulan.
+  Dubai/Abu Dhabi: baseline maks AED 18.000/bulan; upper-market maks AED 28.000/bulan.
+  San Francisco (remote dari Indonesia): baseline maks USD 3.500/bulan; onsite hanya jika ada visa sponsor nyata, maks USD 9.000/bulan.
+  Untuk semua lokasi: jika kandidat bukan Level 4 atau 5 yang terbukti dari CV, jangan mendekati batas atas ini.
+- marketValue hanya untuk lokasi target: ${locationsStr}.
 - Nama lokasi harus bersih dan terbaca. Contoh: "Jakarta", "Singapura", "Kuala Lumpur", "San Francisco".
 - KRITIS: Nilai tiap lokasi di marketValue HARUS berupa STRING BIASA (bukan object, bukan array, bukan nested JSON).
 - DILARANG KERAS: jangan pernah menulis { "rentangGaji": "...", "posisiAcuan": "...", "baseline": "...", "upperMarket": "..." } atau bentuk object apapun sebagai nilai lokasi.
+- KONVERSI RUPIAH: Untuk lokasi DI LUAR Indonesia, setiap kali menyebut angka dalam mata uang asing (USD, SGD, MYR, AED, QAR, KWD, SEK, EUR, GBP, dll.), TAMBAHKAN konversi perkiraan ke Rupiah dalam tanda kurung tepat setelah angka tersebut. Gunakan kurs perkiraan berikut: 1 USD ≈ Rp 16.000, 1 SGD ≈ Rp 11.500, 1 MYR ≈ Rp 3.500, 1 AED ≈ Rp 4.350, 1 QAR ≈ Rp 4.400, 1 KWD ≈ Rp 52.000, 1 SEK ≈ Rp 1.500, 1 EUR ≈ Rp 17.500, 1 GBP ≈ Rp 20.500. Format konversi: jika rentang, konversi rentangnya juga. Contoh BENAR: "Baseline realistis SGD 5.500–7.000/bulan (≈ Rp 63–80 juta) untuk posisi mid-senior". Contoh BENAR: "Upper-market USD 4.500–6.500/bulan (≈ Rp 72–104 juta) sebagai remote contractor". Bulatkan ke juta rupiah terdekat agar mudah dibaca. Untuk Jakarta dan kota Indonesia lain, jangan tambahkan konversi (sudah dalam Rupiah).
 - CONTOH FORMAT YANG BENAR (ikuti persis pola ini):
   "Jakarta": "Baseline realistis Rp 18–25 juta/bulan untuk level mid-senior di product company atau digital banking. Upper-market Rp 28–35 juta/bulan dapat dicapai jika ada metrik dampak bisnis dan kepemimpinan tim yang terbukti. Software house atau perusahaan non-tech umumnya berada di rentang Rp 12–18 juta/bulan.",
-  "Singapura": "Baseline realistis SGD 5.500–7.000/bulan untuk posisi mid-senior di perusahaan regional. Upper-market SGD 8.000–9.500/bulan dapat dicapai jika portofolio arsitektur dan komunikasi Inggris kuat. Estimasi berlaku untuk onsite/relokasi, bukan remote dari Indonesia."
+  "Singapura": "Baseline realistis SGD 5.500–7.000/bulan (≈ Rp 63–80 juta) untuk posisi mid-senior di perusahaan regional. Upper-market SGD 8.000–9.500/bulan (≈ Rp 92–109 juta) dapat dicapai jika portofolio arsitektur dan komunikasi Inggris kuat. Estimasi berlaku untuk onsite/relokasi, bukan remote dari Indonesia."
 - CONTOH FORMAT YANG SALAH (jangan lakukan ini):
   "Jakarta": { "rentangGaji": "Rp 18-25 juta", "posisiAcuan": "Mid-senior" }
+  "Singapura": "Baseline realistis SGD 5.500–7.000/bulan untuk posisi mid-senior" (TANPA konversi Rupiah — salah untuk lokasi luar negeri)
 - marketValue wajib berisi rentang gaji realistis, level role, alasan/rationale, dan kondisi peningkatan salary jika ada.
 - marketValue harus membedakan baseline realistis vs upper-market. Jangan menampilkan angka atas seolah-olah standar umum.
 - Jangan membuat format pendek seperti hanya "Rp 18-30 juta/bulan". Tulis kalimat lengkap dengan konteks.
 - INGAT: marketValue adalah flat object. Setiap key adalah nama lokasi, setiap value adalah satu string panjang. Tidak ada nesting apapun kecuali key "catatan".
 - ringkasanAwam: setiap sub-field maksimal 3 kalimat.
+- ringkasanAwam.pesanPenyemangat: WAJIB menyebut minimal satu pengalaman atau pencapaian spesifik dari CV (nama perusahaan, proyek, sertifikasi, atau kebiasaan nyata yang terlihat dari pola CV). Gabungkan fakta spesifik dengan nada hangat dan emosional yang otentik. Hindari kalimat generik seperti "Anda punya fondasi kuat" tanpa konteks CV. Contoh yang benar: "Perjalanan dari [nama perusahaan] sampai [proyek/pencapaian] membuktikan bahwa Anda bukan orang yang berhenti belajar — dan itu modal paling berharga yang tidak bisa digandakan sembarang orang." Contoh yang salah: "Anda memiliki fondasi yang kuat untuk menjadi pemimpin teknologi."
 - kataKunciJobSeeker.posisi: 6-10 jabatan, tanpa lokasi.
 - kataKunciJobSeeker.keahlian: 8-12 skill teknis dan non-teknis.
 - pemetaanKompetensi: tiap pilar berisi 2-3 kekuatan dan 1-2 celah, tiap item maksimal 12 kata.
 - analisisRisiko.level: hanya "Rendah", "Sedang", atau "Tinggi".
 - analisisRisiko.persentaseRisiko: realistis. Untuk profil senior multi-skill, biasanya 20-45; jangan terlalu rendah jika ada gap bahasa, metrik, atau spesialisasi.
+- analisisRisiko.konteksBenchmark: WAJIB diisi. Satu kalimat singkat (maks 15 kata) yang memberi konteks kenapa persentase tersebut "sedang/rendah/tinggi" untuk profil seperti ini. Contoh: "Profil mid-senior dengan banyak sertifikasi namun metrik dampak bisnis belum eksplisit."
 - analisisRisiko.faktorRisiko: 2-3 item, maksimal 15 kata per item.
 - analisisRisiko.penjelasan: 2-3 kalimat.
 - rekomendasiAkhir: sebut nama, 1-2 keunggulan unik, 1 gap utama, dan 1 target konkret 6-12 bulan.
 - rekomendasiAkhir maksimal 4 kalimat agar tidak mudah terpotong di PDF.
+- quickWins: 3 langkah konkret yang bisa dilakukan minggu ini (bukan 6 bulan). Setiap item berisi:
+  - aksi: kalimat aksi singkat, maksimal 15 kata, spesifik dan langsung.
+  - alasan: satu kalimat mengapa aksi ini penting sekarang.
+  - estimasiWaktu: estimasi waktu pengerjaan (misal: "30 menit", "1-2 jam", "minggu ini").
+  Pilih aksi yang benar-benar bisa dilakukan tanpa biaya besar atau prasyarat rumit. Contoh: update LinkedIn headline, tulis 1 bullet point pengalaman dengan format action-result, daftar tes bahasa Inggris gratis online.
+- marketValue.catatan: WAJIB diisi dengan kalimat metodologi singkat. Contoh: "Estimasi dihitung berdasarkan level kandidat dari bukti CV, tier pasar lokasi, dan faktor koreksi seperti bahasa Inggris dan metrik dampak bisnis. Bukan angka jaminan — gunakan sebagai referensi negosiasi awal." Jangan kosongkan field catatan.
 
 ATURAN MARKET VALUE / ESTIMASI GAJI:
 - Estimasi gaji harus konservatif-rasional, bukan angka promosi.
@@ -383,26 +404,6 @@ JANGAN:
 FORMAT CONTOH (gunakan mata uang dan satuan yang lazim untuk lokasi tersebut):
 "[Nama Lokasi]": "Baseline realistis [angka–angka mata uang/bulan] untuk [level role]. Upper-market [angka lebih tinggi] dapat dicapai jika [syarat eksplisit dari CV yang perlu ditambah]. [Kalimat konteks: tipe perusahaan, mode kerja, atau faktor lokal]."
 
-FIELD BARU YANG WAJIB DIISI:
-- evidenceMapping: peta klaim terhadap bukti CV.
-  - klaim: klaim karier yang muncul dalam laporan.
-  - buktiCV: bukti ringkas dari CV, bukan kutipan panjang.
-  - tingkatKeyakinan: "Tinggi", "Sedang", atau "Rendah".
-  - catatanKalibrasi: jelaskan jika klaim masih perlu dibatasi.
-  - Buat 5-7 item.
-- roleFitMatrix: matriks kecocokan role.
-  - role: nama role.
-  - kecocokan: integer 0-100.
-  - status: "Realistis Sekarang", "Dekat / Perlu Pembuktian", atau "Aspiratif".
-  - alasan: 1 kalimat berbasis CV.
-  - syaratNaikLevel: 1 kalimat tindakan/skill/bukti yang perlu ditambah.
-  - Buat 5-7 role.
-- actionableGap: gap yang paling penting untuk ditutup.
-  - area: nama area gap.
-  - dampak: dampak terhadap karier/market value.
-  - buktiYangPerluDitambah: bukti konkret yang harus muncul di CV/portfolio.
-  - langkah6Bulan: aksi konkret 6 bulan.
-  - Buat 4-6 item. Jangan kurang dari 4.
 - cvRewriteAdvice: saran praktis untuk memperbaiki CV.
   - prioritas: "Tinggi", "Sedang", atau "Rendah".
   - bagianCV: bagian CV yang perlu diperbaiki.
@@ -413,7 +414,10 @@ FIELD BARU YANG WAJIB DIISI:
   - Buat 4-6 item. Jangan kurang dari 4.
 - Semua field baru harus tetap muncul meskipun isinya singkat.
 - Jika bukti CV tidak cukup, jangan kosongkan field; tulis gap atau catatan kalibrasi.
-- Hindari mengulang isi yang sama antar section. evidenceMapping fokus pada bukti, roleFitMatrix fokus pada kecocokan role, actionableGap fokus pada gap yang bisa dikerjakan, cvRewriteAdvice fokus pada perbaikan CV.
+- ANTI-REDUNDANSI: Hindari mengulang poin yang sama antar section. Setiap section punya sudut pandang unik:
+  - ringkasanAwam: narasi motivasional, bahasa sehari-hari, untuk dibagikan ke keluarga/teman.
+  - cvRewriteAdvice: perbaikan teknis dokumen CV.
+  - Jika satu tema (misal: bahasa Inggris) harus muncul di banyak section, pastikan tiap section menyorot ASPEK yang berbeda: cvRewriteAdvice sorot cara menampilkan di CV.
 
 OUTPUT JSON:
 {
@@ -482,31 +486,6 @@ OUTPUT JSON:
     "faktorRisiko": [],
     "penjelasan": ""
   },
-  "evidenceMapping": [
-    {
-      "klaim": "",
-      "buktiCV": "",
-      "tingkatKeyakinan": "",
-      "catatanKalibrasi": ""
-    }
-  ],
-  "roleFitMatrix": [
-    {
-      "role": "",
-      "kecocokan": 0,
-      "status": "",
-      "alasan": "",
-      "syaratNaikLevel": ""
-    }
-  ],
-  "actionableGap": [
-    {
-      "area": "",
-      "dampak": "",
-      "buktiYangPerluDitambah": "",
-      "langkah6Bulan": ""
-    }
-  ],
   "cvRewriteAdvice": [
     {
       "prioritas": "",
@@ -516,7 +495,14 @@ OUTPUT JSON:
       "contohKalimat": ""
     }
   ],
-  "rekomendasiAkhir": ""
+  "rekomendasiAkhir": "",
+  "quickWins": [
+    {
+      "aksi": "",
+      "alasan": "",
+      "estimasiWaktu": ""
+    }
+  ]
 }`;
 }
 
@@ -533,9 +519,13 @@ async function analyzeWithGemini(prompt) {
   const model = genAI.getGenerativeModel({
     model: geminiModel,
     generationConfig: {
-      temperature: 0.35,
-      topP: 0.85,
-      topK: 40,
+      // temperature diturunkan dari 0.35 ke 0.20 supaya hasil antar generasi
+      // (skor numerik, estimasi gaji) lebih konsisten untuk CV yang sama.
+      // Trade-off: variasi diksi narasi sedikit berkurang, tapi user mendapat
+      // hasil yang dapat dipercaya saat me-generate ulang.
+      temperature: 0.20,
+      topP: 0.8,
+      topK: 32,
       maxOutputTokens: 16000,
       responseMimeType: 'application/json',
     },
