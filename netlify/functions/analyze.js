@@ -9,6 +9,53 @@ const CORS_HEADERS = {
   'X-Data-Policy': 'no-storage',
 };
 
+function repairJson(raw) {
+  let s = raw;
+
+  // 1. Remove control characters that break JSON parsers (except \t \n \r)
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  // 2. Replace curly/smart quotes with straight quotes
+  s = s.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
+
+  // 3. Remove trailing commas before } or ]  (Gemini produces these frequently)
+  s = s.replace(/,\s*([}\]])/g, '$1');
+
+  // 4. If the JSON is truncated (Gemini hit token limit mid-output),
+  //    close all open structures so JSON.parse has a chance.
+  try {
+    JSON.parse(s);
+    return s; // already valid
+  } catch {
+    // Count unclosed braces/brackets and close them
+    const opens = [];
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (escape) { escape = false; continue; }
+      if (ch === '\\' && inString) { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === '{') opens.push('}');
+      else if (ch === '[') opens.push(']');
+      else if (ch === '}' || ch === ']') opens.pop();
+    }
+
+    // If we ended mid-string, close the string first
+    if (inString) s += '"';
+
+    // Remove trailing comma before we close
+    s = s.replace(/,\s*$/, '');
+
+    // Close all open structures in reverse
+    s += opens.reverse().join('');
+
+    return s;
+  }
+}
+
 function cleanJsonResponse(text) {
   const cleaned = String(text || '')
     .replace(/```json\n?/g, '')
@@ -22,7 +69,24 @@ function cleanJsonResponse(text) {
     throw new Error('Respons AI bukan JSON yang valid');
   }
 
-  return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+  const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+
+  // First try: parse as-is
+  try {
+    return JSON.parse(candidate);
+  } catch (firstErr) {
+    // Second try: repair then parse
+    try {
+      const repaired = repairJson(candidate);
+      const parsed = JSON.parse(repaired);
+      console.warn('[cleanJsonResponse] Used repairJson. Original error:', firstErr.message);
+      return parsed;
+    } catch (secondErr) {
+      // Log first 500 chars of the raw response to help diagnose future issues
+      console.error('[cleanJsonResponse] Parse failed. Raw snippet:', candidate.slice(0, 500));
+      throw new Error(`Respons AI bukan JSON yang valid: ${firstErr.message}`);
+    }
+  }
 }
 
 function parseJsonField(value, fieldName) {
@@ -114,7 +178,6 @@ function normalizeUserData(rawUserData) {
     fullName: userData.fullName || 'Pengguna',
     birthDate: userData.birthDate || new Date().toISOString(),
     gender: userData.gender || '-',
-    intention: userData.intention || '-',
     workTypes: normalizeArray(userData.workTypes),
     dreamLocations: normalizeArray(userData.dreamLocations),
     outputLang: userData.outputLang || 'id',
@@ -130,379 +193,157 @@ function getHeader(headers, name) {
   return foundKey ? headers[foundKey] : '';
 }
 
+
+const MAX_PDF_PAGES = Number(process.env.MAX_PDF_PAGES || 3);
+const MAX_CV_CHARS = Number(process.env.MAX_CV_CHARS || 14000);
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 18000);
+const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 6500);
+
+function compactCvText(text = '') {
+  const clean = String(text || '')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (clean.length <= MAX_CV_CHARS) return clean;
+
+  const headSize = Math.floor(MAX_CV_CHARS * 0.72);
+  const tailSize = Math.floor(MAX_CV_CHARS * 0.28);
+  const head = clean.slice(0, headSize).trim();
+  const tail = clean.slice(-tailSize).trim();
+
+  return `${head}\n\n[...CV DIPERSINGKAT OTOMATIS UNTUK MENCEGAH TIMEOUT NETLIFY...]\n\n${tail}`;
+}
+
+function withTimeout(promise, ms = AI_TIMEOUT_MS) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error('Analisis membutuhkan waktu terlalu lama. Coba gunakan PDF CV maksimal 3 halaman atau ulangi beberapa saat lagi.'));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // ── SHARED buildPrompt ────────────────────────────────────────
 function buildPrompt(cvText, userData) {
-  const {
-    fullName,
-    birthDate,
-    gender,
-    intention,
-    workTypes,
-    dreamLocations,
-    outputLang = 'id',
-  } = userData;
-
+  const { fullName, birthDate, gender, workTypes, dreamLocations, outputLang = 'id' } = userData;
   const birth = new Date(birthDate);
   const today = new Date();
-
   let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
+  const md = today.getMonth() - birth.getMonth();
+  if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age--;
 
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
+  const workTypesStr = Array.isArray(workTypes) ? workTypes.join(', ') : workTypes || '-';
+  const locationsStr = Array.isArray(dreamLocations) ? dreamLocations.join(', ') : dreamLocations || '-';
 
-  const workTypesStr = Array.isArray(workTypes)
-    ? workTypes.join(', ')
-    : workTypes || '-';
+  const level = age <= 26
+    ? 'Fresh Graduate / Early Career'
+    : age <= 32
+      ? 'Mid-level Professional'
+      : 'Senior Professional';
 
-  const locationsStr = Array.isArray(dreamLocations)
-    ? dreamLocations.join(', ')
-    : dreamLocations || '-';
+  const scoreGuide = age <= 26
+    ? 'Fresh grad: 40–65. >65 hanya jika bukti kerja nyata sangat kuat.'
+    : age <= 32
+      ? 'Mid-level: 55–75. >75 hanya jika ada bukti leadership, dampak bisnis, atau pengalaman global.'
+      : 'Senior: 65–85. Jangan >85. Skor 80–85 hanya untuk bukti sangat kuat.';
 
-  const level =
-    age <= 26
-      ? 'Fresh Graduate / Early Career'
-      : age <= 32
-        ? 'Mid-level Professional'
-        : 'Senior Professional';
+  const langInstruction = outputLang === 'en'
+    ? 'Write ALL JSON values in English. Keep field keys unchanged.'
+    : 'Tulis SEMUA nilai JSON dalam Bahasa Indonesia formal, natural, dan mudah dipahami. Field keys jangan diubah.';
 
-  const scoreGuide =
-    age <= 26
-      ? 'Fresh grad: 40-65. Skor di atas 65 hanya boleh jika ada bukti kerja nyata yang sangat kuat.'
-      : age <= 32
-        ? 'Mid-level: 55-75. Skor di atas 75 hanya boleh jika ada bukti kepemimpinan, dampak bisnis, atau pengalaman global yang jelas.'
-        : 'Senior: 65-85. Jangan melewati 85. Skor 80-85 hanya untuk area yang benar-benar terbukti kuat dari CV, bukan sekadar sertifikasi.';
+  const compactCv = compactCvText(cvText);
 
-  const langInstruction =
-    outputLang === 'en'
-      ? 'Write ALL JSON field values in English. Keep field keys unchanged.'
-      : 'Tulis SEMUA nilai field JSON dalam Bahasa Indonesia formal, natural, dan mudah dipahami. Field keys tidak diubah.';
+  return `Anda adalah Retrokarir, AI Career Intelligence Advisor untuk job seeker umum.
+Peran: mentor karier senior, recruiter, analis pasar talenta, dan reviewer CV.
 
-  return `
-Anda adalah Retrokarir AI Career Intelligence Advisor: mentor karier senior, enterprise recruiter, talent market analyst, dan career positioning consultant.
-
-TUGAS UTAMA:
-Buat laporan karier personal yang objektif, realistis, tidak generik, dan berbasis CV. Laporan harus membantu pemilik CV memahami:
-1. posisi karier saat ini,
-2. kekuatan yang benar-benar terbukti,
-3. potensi yang masih perlu dibuktikan,
-4. gap yang harus ditutup,
-5. role yang paling realistis,
-6. estimasi market value yang rasional dan tidak berlebihan,
-7. langkah konkret 6-12 bulan.
-
-INPUT CV:
-${cvText}
-
-DATA PENGGUNA DARI FORM:
+DATA PENGGUNA
 Nama: ${fullName}
 Usia: ${age} tahun (${level})
 Gender: ${gender}
-Tipe Kerja Diinginkan: ${workTypesStr}
-Lokasi Target: ${locationsStr}
-Tujuan Analisis: ${intention || '-'}
+Tipe kerja target: ${workTypesStr}
+Lokasi target: ${locationsStr}
 
-ATURAN OUTPUT:
-- Output HANYA JSON valid. Tanpa markdown, tanpa teks pembuka, tanpa teks penutup.
-- ${langInstruction}
-- Field keys dan struktur JSON WAJIB valid.
+CV
+${compactCv}
+
+BAHASA
+${langInstruction}
+
+ATURAN UTAMA
+- Output hanya JSON valid. Tanpa markdown, tanpa teks pembuka/penutup.
 - Jangan mengarang fakta yang tidak ada di CV.
-- Jangan memakai gaya motivator berlebihan.
-- Jangan memakai frasa hiperbolik seperti: "talenta langka", "panggung dunia", "sangat aman dari otomasi", "sudah pasti", "jaminan", "kelas dunia", "tech-giant", atau "professional student".
-- Jika ingin menyebut keunikan profil, gunakan bahasa terukur seperti "kombinasi yang cukup berbeda", "diferensiasi yang kuat", atau "nilai tambah yang terlihat dari CV".
-- Gunakan ejaan lokasi yang benar: "San Francisco", bukan "San Fransisco".
-- Hindari frasa terlalu berat seperti "open-source tingkat dunia". Gunakan "kontribusi open-source yang konsisten dan relevan secara teknis".
-- Untuk proyek publik seperti eHAC, gunakan istilah "proyek layanan publik berskala luas" atau "aplikasi sektor publik berdampak luas", bukan klaim yang terlalu dramatis.
-- JANGAN gunakan frasa seperti "proyek pemerintah yang kritis", "kepentingan nasional", "proyek sebesar eHAC", "infrastruktur kritis", atau "vital bagi negara" kecuali CV menyebutkan skala/kekritisan tersebut secara eksplisit.
-- Jika CV menyebut eHAC atau proyek publik serupa tanpa menyebut jumlah pengguna secara eksplisit, JANGAN tulis "digunakan jutaan orang" atau klaim skala pengguna apapun. Gunakan framing yang defensible seperti: "aplikasi eHAC iOS yang digunakan sebagai bagian dari layanan perjalanan nasional selama pandemi COVID-19 di Indonesia."
-- Klaim skala hanya boleh ditulis jika angka atau ukuran tersebut tercantum secara eksplisit di CV.
-- Bedakan secara eksplisit antara:
-  a) bukti kuat dari CV,
-  b) indikasi/potensi,
-  c) target pengembangan.
-- Sertifikasi boleh dianggap sebagai sinyal kesiapan, tetapi bukan bukti pengalaman produksi kecuali CV menunjukkan penerapan nyata.
-- Jika CV tidak menyebut metrik seperti jumlah pengguna, revenue, SLA, ukuran tim, atau dampak bisnis, nyatakan sebagai gap, bukan diasumsikan.
-- Semua skor harus integer 0-100.
-- Panduan skor: ${scoreGuide}
-- Jangan memberi skor lebih dari 85 untuk Senior Professional.
-- KONSISTENSI SKOR: Untuk CV yang sama, skor antar generasi harus stabil. Hindari variasi liar (misal: skor 65 di satu generasi, 60 di generasi berikutnya). Pegang prinsip ini: skor harus mencerminkan bukti faktual di CV, bukan mood narasi. Jika ragu antara dua nilai berdekatan (misal 60 vs 65), selalu pilih nilai yang lebih dekat dengan kelipatan 5 berdasarkan kekuatan bukti CV. Skor untuk area dengan bukti kuat dan stabil → kelipatan 5 yang lebih tinggi; skor untuk area dengan bukti parsial/sertifikasi saja → kelipatan 5 yang lebih rendah. Ini membantu menjaga determinism antar generasi.
-- KONSISTENSI ESTIMASI GAJI: Sama untuk estimasi gaji. Pegang ke median yang dapat dijustifikasi dari bukti CV. Hindari menggeser baseline ±20% antar generasi untuk profil yang sama.
-- Untuk role AI Engineer, Cybersecurity Specialist, Engineering Manager, atau Solution Architect, jangan jadikan klaim utama jika CV hanya menunjukkan sertifikasi atau pengalaman parsial. Jadikan sebagai jalur transisi atau target bersyarat.
-- Nada ringkasan awam: hangat, semi-formal, profesional, dan jujur. Hindari slang seperti "keren banget", "coba deh", "jarang lho", "mantap", "yuk", "nih".
+- Bedakan bukti kuat, indikasi/potensi, dan target pengembangan.
+- Sertifikasi adalah sinyal kompetensi, bukan bukti produksi, kecuali CV menunjukkan implementasi nyata.
+- Jika CV tidak menyebut metrik seperti jumlah user, revenue, SLA, ukuran tim, efisiensi, atau skala sistem, nyatakan sebagai gap.
+- Hindari hiperbola dan klaim absolut.
+- Dilarang memakai frasa: "talenta langka", "kelas dunia", "panggung dunia", "sangat aman dari otomasi", "tech-giant", "jaminan", "sudah pasti", "professional student".
+- Untuk proyek publik seperti eHAC, gunakan istilah "proyek layanan publik berskala luas". Jangan klaim jumlah pengguna jika tidak ada data eksplisit.
+- Bahasa Inggris: target bertahap. TOEFL ITP 550+ atau IELTS 6.5 dulu, lalu IELTS 7.0 jika mengejar pasar global.
+- Rekomendasi harus realistis untuk 6–12 bulan.
 
-PRINSIP ANALISIS:
+PRINSIP ANALISIS
 - Baca pola karier, bukan hanya daftar skill.
-- Hubungkan pengalaman kerja, proyek, sertifikasi, organisasi, dan target lokasi.
-- Nilai CV berdasarkan bukti, bukan asumsi.
-- Berikan saran yang dapat dilakukan dalam 6-12 bulan.
-- Jangan membuat laporan terlalu memuji; pemilik CV harus tahu apa yang sudah kuat dan apa yang belum kuat.
-- Jangan menggunakan diksi yang terlalu menghakimi. Hindari frasa seperti "professional student". Gunakan versi profesional seperti "profil terlihat lebih kuat di pembelajaran daripada bukti delivery" jika sertifikasi banyak tetapi penerapan proyek belum terlihat.
-- Jangan menyarankan "tech-giant" sebagai satu-satunya jalan naik gaji. Gunakan pilihan yang lebih realistis seperti perusahaan teknologi, digital banking, product company, regional tech company, enterprise software company, atau consulting/solution provider.
-- Untuk kemampuan bahasa Inggris, berikan target bertahap. Jangan langsung menyarankan IELTS 7.0 sebagai target utama kecuali CV sudah menunjukkan kemampuan mendekati level tersebut. Gunakan target awal TOEFL ITP 550+ atau IELTS 6.5, lalu IELTS 7.0 sebagai target lanjutan.
-- Jika ada pengalaman publik/enterprise, sebut sebagai "proyek sektor publik/enterprise", "proyek layanan publik berskala luas", atau "aplikasi sektor publik berdampak luas". JANGAN gunakan "vital negara", "kepentingan nasional", atau "infrastruktur kritis" kecuali CV menyebut skala atau kekritisan tersebut secara eksplisit dengan data.
+- Nilai berdasarkan bukti CV.
+- Gunakan konteks 2025: AI literacy, analytical thinking, resilience, leadership, dan kebutuhan upskilling mandiri.
+- Jika posisi rentan otomasi, beri jalur transisi konkret ke peran yang lebih augmented.
+- Jangan Jakarta-sentris jika lokasi target berbeda.
 
-KETENTUAN FIELD LAMA:
-- profilRingkas.bidangKarier: maksimal 6 kata, tanpa kode sektor.
-- careerArchetype.nama: memorable, personal, tetapi tidak hiperbolik.
-- careerArchetype.deskripsi: 2-3 kalimat, realistis, berbasis pola CV.
-- careerArchetype.arahMasaDepan: 2-3 jalur karier konkret dan bersyarat.
-- careerTrajectory.arahKarier: satu narasi singkat tentang arah karier saat ini.
-- careerTrajectory.transisiTerbesar: jelaskan transisi terbesar yang terlihat dari CV.
-- careerTrajectory.fase: 2-4 fase, tiap deskripsi 1-2 kalimat.
-- hiddenAdvantage.kombinasiLangka: 2-3 kombinasi skill/experience yang benar-benar didukung CV.
-- hiddenAdvantage.kenapaLangka: jelaskan tanpa hiperbola.
-- hiddenAdvantage.dampakKarier: jelaskan dampak terhadap positioning pasar.
-- marketPositioning.posisiUtama: role paling realistis saat ini, bukan role aspiratif.
-- marketPositioning.nilaiPasar: ringkas, objektif, sebut kelebihan dan batasannya.
-- marketPositioning.roleCocok: 3-5 role realistis sekarang atau dekat.
-- marketPositioning.roleHindari: 2-3 role yang kurang cocok + alasan singkat.
-- futureProofScore: setiap keterangan maksimal 2 kalimat dan wajib menyebut dasar CV atau gap.
-- careerRisk.salaryCeilingRisk dan stagnationRisk: masing-masing 2-3 kalimat, realistis.
-- careerRisk.penyebab: 2-3 item, maksimal 12 kata per item.
-- careerRisk.solusiStrategis: tepat 3 paragraf naratif SMART, bukan tabel, masing-masing 2-3 kalimat.
-  Paragraf solusi harus realistis, tidak menggurui, dan tidak memakai istilah keras seperti "professional student".
-  Jika membahas sertifikasi yang banyak, arahkan ke bukti penerapan proyek nyata, metrik dampak, portfolio, atau studi kasus.
-- BATAS ATAS MUTLAK PER LOKASI (jangan pernah dilampaui tanpa bukti luar biasa):
-  Jakarta: baseline maks Rp 30 juta/bulan, upper-market maks Rp 45 juta/bulan untuk senior lead dengan bukti lengkap.
-  Singapura: baseline maks SGD 7.000/bulan untuk non-bigtech; upper-market maks SGD 10.000/bulan hanya jika bukti arsitektur/leadership sangat kuat.
-  Kuala Lumpur: baseline maks MYR 12.000/bulan; upper-market maks MYR 18.000/bulan.
-  Dubai/Abu Dhabi: baseline maks AED 18.000/bulan; upper-market maks AED 28.000/bulan.
-  San Francisco (remote dari Indonesia): baseline maks USD 3.500/bulan; onsite hanya jika ada visa sponsor nyata, maks USD 9.000/bulan.
-  Untuk semua lokasi: jika kandidat bukan Level 4 atau 5 yang terbukti dari CV, jangan mendekati batas atas ini.
-- marketValue hanya untuk lokasi target: ${locationsStr}.
-- Nama lokasi harus bersih dan terbaca. Contoh: "Jakarta", "Singapura", "Kuala Lumpur", "San Francisco".
-- KRITIS: Nilai tiap lokasi di marketValue HARUS berupa STRING BIASA (bukan object, bukan array, bukan nested JSON).
-- DILARANG KERAS: jangan pernah menulis { "rentangGaji": "...", "posisiAcuan": "...", "baseline": "...", "upperMarket": "..." } atau bentuk object apapun sebagai nilai lokasi.
-- KONVERSI RUPIAH: Untuk lokasi DI LUAR Indonesia, setiap kali menyebut angka dalam mata uang asing (USD, SGD, MYR, AED, QAR, KWD, SEK, EUR, GBP, dll.), TAMBAHKAN konversi perkiraan ke Rupiah dalam tanda kurung tepat setelah angka tersebut. Gunakan kurs perkiraan berikut: 1 USD ≈ Rp 16.000, 1 SGD ≈ Rp 11.500, 1 MYR ≈ Rp 3.500, 1 AED ≈ Rp 4.350, 1 QAR ≈ Rp 4.400, 1 KWD ≈ Rp 52.000, 1 SEK ≈ Rp 1.500, 1 EUR ≈ Rp 17.500, 1 GBP ≈ Rp 20.500. Format konversi: jika rentang, konversi rentangnya juga. Contoh BENAR: "Baseline realistis SGD 5.500–7.000/bulan (≈ Rp 63–80 juta) untuk posisi mid-senior". Contoh BENAR: "Upper-market USD 4.500–6.500/bulan (≈ Rp 72–104 juta) sebagai remote contractor". Bulatkan ke juta rupiah terdekat agar mudah dibaca. Untuk Jakarta dan kota Indonesia lain, jangan tambahkan konversi (sudah dalam Rupiah).
-- CONTOH FORMAT YANG BENAR (ikuti persis pola ini):
-  "Jakarta": "Baseline realistis Rp 18–25 juta/bulan untuk level mid-senior di product company atau digital banking. Upper-market Rp 28–35 juta/bulan dapat dicapai jika ada metrik dampak bisnis dan kepemimpinan tim yang terbukti. Software house atau perusahaan non-tech umumnya berada di rentang Rp 12–18 juta/bulan.",
-  "Singapura": "Baseline realistis SGD 5.500–7.000/bulan (≈ Rp 63–80 juta) untuk posisi mid-senior di perusahaan regional. Upper-market SGD 8.000–9.500/bulan (≈ Rp 92–109 juta) dapat dicapai jika portofolio arsitektur dan komunikasi Inggris kuat. Estimasi berlaku untuk onsite/relokasi, bukan remote dari Indonesia."
-- CONTOH FORMAT YANG SALAH (jangan lakukan ini):
-  "Jakarta": { "rentangGaji": "Rp 18-25 juta", "posisiAcuan": "Mid-senior" }
-  "Singapura": "Baseline realistis SGD 5.500–7.000/bulan untuk posisi mid-senior" (TANPA konversi Rupiah — salah untuk lokasi luar negeri)
-- marketValue wajib berisi rentang gaji realistis, level role, alasan/rationale, dan kondisi peningkatan salary jika ada.
-- marketValue harus membedakan baseline realistis vs upper-market. Jangan menampilkan angka atas seolah-olah standar umum.
-- Jangan membuat format pendek seperti hanya "Rp 18-30 juta/bulan". Tulis kalimat lengkap dengan konteks.
-- INGAT: marketValue adalah flat object. Setiap key adalah nama lokasi, setiap value adalah satu string panjang. Tidak ada nesting apapun kecuali key "catatan".
-- ringkasanAwam: setiap sub-field maksimal 3 kalimat.
-- ringkasanAwam.pesanPenyemangat: WAJIB menyebut minimal satu pengalaman atau pencapaian spesifik dari CV (nama perusahaan, proyek, sertifikasi, atau kebiasaan nyata yang terlihat dari pola CV). Gabungkan fakta spesifik dengan nada hangat dan emosional yang otentik. Hindari kalimat generik seperti "Anda punya fondasi kuat" tanpa konteks CV. Contoh yang benar: "Perjalanan dari [nama perusahaan] sampai [proyek/pencapaian] membuktikan bahwa Anda bukan orang yang berhenti belajar — dan itu modal paling berharga yang tidak bisa digandakan sembarang orang." Contoh yang salah: "Anda memiliki fondasi yang kuat untuk menjadi pemimpin teknologi."
-- kataKunciJobSeeker.posisi: 6-10 jabatan, tanpa lokasi.
-- kataKunciJobSeeker.keahlian: 8-12 skill teknis dan non-teknis.
-- pemetaanKompetensi: tiap pilar berisi 2-3 kekuatan dan 1-2 celah, tiap item maksimal 12 kata.
-- analisisRisiko.level: hanya "Rendah", "Sedang", atau "Tinggi".
-- analisisRisiko.persentaseRisiko: realistis. Untuk profil senior multi-skill, biasanya 20-45; jangan terlalu rendah jika ada gap bahasa, metrik, atau spesialisasi.
-- analisisRisiko.konteksBenchmark: WAJIB diisi. Satu kalimat singkat (maks 15 kata) yang memberi konteks kenapa persentase tersebut "sedang/rendah/tinggi" untuk profil seperti ini. Contoh: "Profil mid-senior dengan banyak sertifikasi namun metrik dampak bisnis belum eksplisit."
-- analisisRisiko.faktorRisiko: 2-3 item, maksimal 15 kata per item.
-- analisisRisiko.penjelasan: 2-3 kalimat.
-- rekomendasiAkhir: sebut nama, 1-2 keunggulan unik, 1 gap utama, dan 1 target konkret 6-12 bulan.
-- rekomendasiAkhir maksimal 4 kalimat agar tidak mudah terpotong di PDF.
-- quickWins: 3 langkah konkret yang bisa dilakukan minggu ini (bukan 6 bulan). Setiap item berisi:
-  - aksi: kalimat aksi singkat, maksimal 15 kata, spesifik dan langsung.
-  - alasan: satu kalimat mengapa aksi ini penting sekarang.
-  - estimasiWaktu: estimasi waktu pengerjaan (misal: "30 menit", "1-2 jam", "minggu ini").
-  Pilih aksi yang benar-benar bisa dilakukan tanpa biaya besar atau prasyarat rumit. Contoh: update LinkedIn headline, tulis 1 bullet point pengalaman dengan format action-result, daftar tes bahasa Inggris gratis online.
-- marketValue.catatan: WAJIB diisi dengan kalimat metodologi singkat. Contoh: "Estimasi dihitung berdasarkan level kandidat dari bukti CV, tier pasar lokasi, dan faktor koreksi seperti bahasa Inggris dan metrik dampak bisnis. Bukan angka jaminan — gunakan sebagai referensi negosiasi awal." Jangan kosongkan field catatan.
+SKOR
+Semua skor integer 0–100.
+Panduan skor: ${scoreGuide}
+Skor dan estimasi gaji harus stabil antar-generasi. Gunakan kelipatan 5 terdekat.
 
-ATURAN MARKET VALUE / ESTIMASI GAJI:
-- Estimasi gaji harus konservatif-rasional, bukan angka promosi.
-- Jangan memakai angka upper-market sebagai baseline.
-- WAJIB: angka baseline yang kamu tulis harus mencerminkan median pasar, bukan median premium. Lebih baik terlalu rendah dan disebutkan syarat naik, daripada terlalu tinggi tanpa dasar bukti.
-- Jika CV belum menunjukkan metrik dampak bisnis, ukuran tim, system design, atau pengalaman production-scale yang jelas, turunkan estimasi 15-30% dari rentang senior/lead ideal.
-- Jika CV banyak berisi sertifikasi tetapi minim bukti deployment ke production atau dampak bisnis terukur, gunakan rentang level "mid-senior", bukan "senior penuh" atau "lead".
-- Untuk role leadership seperti Engineering Manager, IT Manager, Solution Architect, atau Mobile Lead, berikan angka tinggi hanya jika CV membuktikan people management, ownership roadmap, system architecture, stakeholder management, dan dampak bisnis.
-- Jika bukti leadership belum lengkap, gunakan label "berpotensi menuju" atau "upper-market jika bukti ditambahkan".
-- Untuk lokasi global, bedakan antara:
-  1. local hire/onsite,
-  2. relocation dengan visa,
-  3. remote contractor dari Indonesia.
-- Untuk San Francisco atau pasar Amerika Serikat, jangan membuat angka onsite seolah otomatis berlaku untuk kandidat remote dari Indonesia. Remote contractor harus jauh lebih konservatif daripada local onsite senior engineer.
-- Untuk Singapura, bedakan antara perusahaan lokal/regional, multinational company, dan big tech. Jangan langsung memakai angka big tech.
-- Untuk Jakarta, bedakan antara perusahaan non-tech/internal IT, software house, digital banking, product company, dan unicorn.
-- Untuk Timur Tengah seperti Doha, Dubai, Kuwait, atau Saudi, pertimbangkan paket total compensation, benefit, housing, dan pajak. Jangan hanya menaikkan angka karena wilayah tersebut dianggap kaya.
-- Untuk Kuala Lumpur, jangan terlalu tinggi hanya karena pernah bekerja di Malaysia; pengalaman tersebut adalah nilai tambah, bukan jaminan masuk rentang tertinggi.
-- Jika data CV belum menunjukkan bahasa Inggris kuat, global interview readiness, atau portfolio architecture, turunkan estimasi untuk Singapura, Eropa, Amerika Serikat, dan remote global.
-- Market value wajib memuat kalimat syarat peningkatan, misalnya: "dapat naik jika memiliki metrik dampak, portfolio arsitektur, dan komunikasi Inggris yang lebih kuat."
-- Gunakan kata "baseline realistis", "upper-market", dan "syarat naik" secara konsisten.
-- JANGAN pernah menampilkan hanya angka upper-market saja. Selalu sertakan baseline realistis terlebih dahulu.
-- Jika rentang yang kamu tulis terasa seperti iklan lowongan bukan realita pasar, itu sinyal bahwa angkamu terlalu tinggi — turunkan.
+KETENTUAN FIELD
+- profilRingkas.bidangKarier: maks 6 kata.
+- ringkasanAwam: setiap sub-field maks 2 kalimat. pesanPenyemangat wajib menyebut minimal 1 proyek/perusahaan/pencapaian spesifik dari CV.
+- pemetaanKompetensi: 4 pilar. Tiap pilar berisi 2 kekuatan dan 1 celah. Maks 12 kata per item.
+- analisisRisiko.level hanya "Rendah", "Sedang", atau "Tinggi". persentaseRisiko 20–45 untuk profil senior multi-skill. faktorRisiko 2 item.
+- kataKunciJobSeeker.posisi: 6–8 jabatan.
+- kataKunciJobSeeker.keahlian: 8–10 skill teknis/non-teknis.
+- cvRewriteAdvice: tepat 4 item. prioritas hanya "Tinggi", "Sedang", atau "Rendah". contohKalimat maksimal 1 kalimat. Jangan karang metrik; gunakan [X%], [N pengguna], atau [N karyawan] jika perlu.
+- rekomendasiAkhir: sebut nama, 1–2 keunggulan unik, 1 gap utama, dan 1 target 6–12 bulan. Maks 3 kalimat.
+- quickWins: tepat 3 langkah minggu ini. aksi maks 12 kata dan bisa dilakukan tanpa biaya besar.
+- marketValue.catatan wajib berisi metodologi singkat.
 
-PANDUAN RASIONALISASI GAJI:
-Jangan hardcode angka berdasarkan nama kota. Gunakan framework dua sumbu berikut: (1) level kandidat berdasarkan bukti CV, dan (2) tier pasar lokasi berdasarkan daya beli dan standar industri tech setempat. Kalikan keduanya untuk mendapat estimasi yang tidak bias terhadap kota tertentu.
+ATURAN MARKET VALUE
+Buat estimasi hanya untuk lokasi target: ${locationsStr}.
+marketValue harus flat object: key = nama lokasi, value = string. Satu-satunya key non-lokasi adalah "catatan".
+Tier ringkas:
+- Tier A: San Francisco, New York, London, Zurich, Amsterdam, Sydney, Toronto, Seattle, Boston.
+- Tier B: Singapura, Hong Kong, Tokyo, Seoul, Dublin, Stockholm, Copenhagen, Tel Aviv.
+- Tier C: Dubai, Riyadh, Doha, Kuala Lumpur, Bangkok, Manila, Warsaw, Lisbon, Barcelona.
+- Tier D: Jakarta, Bandung, Surabaya, Yogyakarta, Bali, kota Indonesia lain.
+Batas atas konservatif:
+- Tier A onsite L3 maks USD 12K/bln; remote dari Indonesia L3 maks USD 5K/bln.
+- Tier B L3 maks USD 7K/bln; L4/L5 kuat maks USD 10K/bln.
+- Tier C L3 maks USD 4.5K/bln; L4/L5 maks USD 6K/bln.
+- Tier D Jakarta product L3 maks Rp 30 juta/bln; L4/L5 kuat maks Rp 50 juta/bln.
+- Tier D non-product L3 maks Rp 20 juta/bln.
+Faktor koreksi: kurangi 10–20% jika bahasa Inggris belum kuat, tidak ada metrik dampak bisnis, mayoritas pengalaman internal IT/non-product, banyak sertifikasi tetapi minim bukti deployment, atau belum ada rekam jejak pasar target.
+Kurs: USD×16.000, SGD×11.500, MYR×3.500, AED×4.350, QAR×4.400, EUR×17.500, GBP×20.500, JPY×105, AUD×10.500.
+Format value lokasi: "Baseline realistis [rentang mata uang/bln] untuk [level role]. Upper-market [angka] dapat dicapai jika [syarat eksplisit]. [Catatan onsite/remote/pajak/total compensation]."
+Untuk luar Indonesia, tambahkan konversi Rupiah.
 
-LANGKAH 1 — TENTUKAN LEVEL KANDIDAT DARI CV:
-Baca bukti nyata di CV, bukan sekadar tahun pengalaman atau jumlah sertifikasi.
-
-  Level 1 — Junior/Early (baseline rendah):
-  Ciri: 0-3 tahun pengalaman, atau pengalaman lebih tapi minim bukti produksi, banyak sertifikasi tanpa deployment nyata, belum ada metrik dampak.
-  Kalikan faktor: 0.5–0.7 dari median senior lokasi tersebut.
-
-  Level 2 — Mid (baseline menengah):
-  Ciri: 3-6 tahun, ada 1-2 proyek produksi yang bisa dijelaskan, mulai ada ownership fitur, belum ada kepemimpinan tim.
-  Kalikan faktor: 0.7–0.85 dari median senior.
-
-  Level 3 — Senior (baseline utama):
-  Ciri: 5+ tahun dengan bukti produksi konsisten, pernah ownership end-to-end, ada dampak terukur atau bisa dijelaskan secara teknis mendalam.
-  Ini adalah angka baseline yang ditulis pertama. Jangan naikkan tanpa bukti tambahan.
-
-  Level 4 — Lead/Principal (syarat ketat):
-  Ciri: ada bukti eksplisit people management atau mentoring tim, ownership roadmap atau arsitektur sistem, dampak bisnis lintas tim.
-  Kalikan faktor: 1.2–1.5 dari median senior. HANYA jika semua syarat terpenuhi dari CV.
-
-  Level 5 — Manager/Architect (jarang, syarat sangat ketat):
-  Ciri: P&L ownership, atau arsitektur skala enterprise yang terbukti, atau manajemen tim 5+ orang dengan deliverable bisnis jelas.
-  Kalikan faktor: 1.5–2.0 dari median senior. Jangan diasumsikan dari sertifikasi saja.
-
-LANGKAH 2 — TENTUKAN TIER PASAR LOKASI:
-Klasifikasikan lokasi target ke dalam salah satu tier berikut. Jika lokasi tidak dikenal, gunakan Tier C sebagai default konservatif.
-
-  Tier A — Pasar global premium (biaya hidup sangat tinggi, standar tech ketat):
-  Contoh tipikal: San Francisco/Bay Area, New York, London, Zurich, Amsterdam, Sydney.
-  Karakteristik: kandidat bersaing langsung dengan talent lokal, visa/relokasi menjadi faktor besar, remote dari Indonesia jauh lebih rendah dari onsite.
-  Median senior tech onsite: setara USD 8.000–12.000/bulan (gross, sebelum pajak tinggi).
-  Remote contractor dari Indonesia ke klien Tier A: potong 40–60% dari angka onsite karena tidak menanggung biaya hidup setempat.
-
-  Tier B — Pasar regional maju (biaya hidup tinggi-menengah, tech ecosystem berkembang):
-  Contoh tipikal: Singapura, Hong Kong, Tokyo, Seoul, Dubai, Abu Dhabi, Stockholm, Copenhagen.
-  Karakteristik: demand tech tinggi, ada campuran expat dan lokal, benefit seperti housing allowance perlu diperhitungkan terpisah.
-  Median senior tech: setara USD 4.000–7.000/bulan gross.
-  Jangan jadikan angka big tech atau MNC sebagai baseline umum; itu outlier.
-
-  Tier C — Pasar regional menengah (biaya hidup menengah, tech ecosystem tumbuh):
-  Contoh tipikal: Kuala Lumpur, Bangkok, Manila, Jakarta (product company/digital banking), Doha, Riyadh, Kuwait City.
-  Karakteristik: standar gaji lebih bervariasi antar sektor, perusahaan non-tech membayar jauh lebih rendah dari product company.
-  Median senior tech: setara USD 2.000–4.000/bulan gross.
-  Untuk Timur Tengah di tier ini: hitung total compensation termasuk benefit, bukan hanya gaji pokok.
-
-  Tier D — Pasar lokal (biaya hidup menengah-rendah, tech ecosystem berkembang):
-  Contoh tipikal: Jakarta (software house/perusahaan non-tech), Bandung, Surabaya, kota-kota tier-2 Indonesia, kota-kota tier-2 Asia Tenggara.
-  Median senior tech: setara USD 800–2.000/bulan gross.
-  Jangan naikkan ke Tier C hanya karena nama kota terdengar besar; lihat tipe perusahaan target.
-
-LANGKAH 3 — FAKTOR KOREKSI (turunkan estimasi jika berlaku):
-Terapkan setiap faktor yang relevan. Tiap faktor menurunkan estimasi 10–20%.
-  - CV tidak menunjukkan bahasa Inggris aktif atau portofolio komunikasi global → -15% untuk Tier A dan B.
-  - Tidak ada metrik dampak bisnis yang bisa disebutkan (jumlah user, revenue impact, SLA, ukuran tim) → -10%.
-  - Pengalaman mayoritas di sektor non-tech atau internal IT, bukan product/engineering company → -15%.
-  - Banyak sertifikasi tapi minim bukti deployment ke production → -20%.
-  - Target lokasi adalah remote dari Indonesia ke klien Tier A/B → -40 hingga -50% dari angka onsite tier tersebut.
-  - Tidak ada rekam jejak interview atau kerja di pasar target → -10 hingga -15% sebagai risk discount.
-
-LANGKAH 4 — TULIS ESTIMASI DENGAN FORMAT WAJIB INI:
-Setiap entri market value HARUS memuat tiga bagian:
-  1. Baseline realistis: angka untuk level kandidat saat ini berdasarkan bukti CV, bukan aspirasi.
-  2. Upper-market: angka yang bisa dicapai jika syarat tertentu dipenuhi — sebutkan syaratnya eksplisit.
-  3. Catatan konteks: sebutkan tipe perusahaan, mode kerja (onsite/remote/relokasi), atau faktor lokal yang relevan.
-
-JANGAN:
-- Menulis hanya satu angka tanpa syarat.
-- Menjadikan angka upper-market sebagai angka pertama yang disebutkan.
-- Menaikkan estimasi hanya karena lokasi terdengar makmur (Dubai, Qatar, dll) tanpa melihat level kandidat.
-- Menulis angka onsite untuk kandidat yang statusnya remote dari Indonesia.
-- Membuat estimasi untuk lokasi yang tidak ada di dreamLocations user.
-
-FORMAT CONTOH (gunakan mata uang dan satuan yang lazim untuk lokasi tersebut):
-"[Nama Lokasi]": "Baseline realistis [angka–angka mata uang/bulan] untuk [level role]. Upper-market [angka lebih tinggi] dapat dicapai jika [syarat eksplisit dari CV yang perlu ditambah]. [Kalimat konteks: tipe perusahaan, mode kerja, atau faktor lokal]."
-
-- cvRewriteAdvice: saran praktis untuk memperbaiki CV.
-  - prioritas: "Tinggi", "Sedang", atau "Rendah".
-  - bagianCV: bagian CV yang perlu diperbaiki.
-  - masalah: masalah yang terlihat.
-  - saranPerbaikan: perbaikan konkret.
-  - contohKalimat: contoh kalimat siap pakai, maksimal 1 kalimat.
-  - PENTING untuk contohKalimat: jangan mengarang angka atau metrik spesifik yang tidak ada di CV (misal: "30%", "50 pengguna", "2x lebih cepat"). Jika ingin menunjukkan format metrik, gunakan placeholder eksplisit seperti [X%], [N pengguna], atau [hasil pengukuran]. Contoh benar: "Memimpin migrasi sistem pembayaran yang meningkatkan efisiensi proses sebesar [X%] berdasarkan hasil pengukuran internal." Contoh salah: "Meningkatkan efisiensi administrasi sebesar 30%."
-  - Buat 4-6 item. Jangan kurang dari 4.
-- Semua field baru harus tetap muncul meskipun isinya singkat.
-- Jika bukti CV tidak cukup, jangan kosongkan field; tulis gap atau catatan kalibrasi.
-- ANTI-REDUNDANSI: Hindari mengulang poin yang sama antar section. Setiap section punya sudut pandang unik:
-  - ringkasanAwam: narasi motivasional, bahasa sehari-hari, untuk dibagikan ke keluarga/teman.
-  - cvRewriteAdvice: perbaikan teknis dokumen CV.
-  - Jika satu tema (misal: bahasa Inggris) harus muncul di banyak section, pastikan tiap section menyorot ASPEK yang berbeda: cvRewriteAdvice sorot cara menampilkan di CV.
-
-OUTPUT JSON:
+OUTPUT JSON
 {
-  "profilRingkas": {
-    "nama": "",
-    "usia": 0,
-    "bidangKarier": ""
-  },
-  "careerArchetype": {
-    "nama": "",
-    "deskripsi": "",
-    "arahMasaDepan": []
-  },
-  "careerTrajectory": {
-    "arahKarier": "",
-    "transisiTerbesar": "",
-    "fase": [{ "periode": "", "judul": "", "deskripsi": "" }]
-  },
-  "hiddenAdvantage": {
-    "kombinasiLangka": [],
-    "kenapaLangka": "",
-    "dampakKarier": ""
-  },
-  "marketPositioning": {
-    "posisiUtama": "",
-    "nilaiPasar": "",
-    "roleCocok": [],
-    "roleHindari": []
-  },
-  "futureProofScore": {
-    "aiResistance": { "skor": 0, "keterangan": "" },
-    "leadershipPotential": { "skor": 0, "keterangan": "" },
-    "globalMobility": { "skor": 0, "keterangan": "" },
-    "technicalDepth": { "skor": 0, "keterangan": "" }
-  },
-  "careerRisk": {
-    "salaryCeilingRisk": "",
-    "stagnationRisk": "",
-    "penyebab": [],
-    "solusiStrategis": []
-  },
-  "marketValue": {
-    "catatan": ""
-  },
-  "ringkasanAwam": {
-    "situasiSekarang": "",
-    "kelebihanUtama": "",
-    "yangPerluDitambah": "",
-    "langkahPertama": "",
-    "pesanPenyemangat": ""
-  },
-  "kataKunciJobSeeker": {
-    "posisi": [],
-    "keahlian": []
-  },
+  "profilRingkas": { "nama": "", "usia": 0, "bidangKarier": "" },
+  "marketValue": { "catatan": "" },
+  "ringkasanAwam": { "situasiSekarang": "", "kelebihanUtama": "", "yangPerluDitambah": "", "langkahPertama": "", "pesanPenyemangat": "" },
+  "kataKunciJobSeeker": { "posisi": [], "keahlian": [] },
   "pemetaanKompetensi": {
-    "kognitif": { "skor": 0, "kekuatan": [], "celah": [] },
-    "interpersonal": { "skor": 0, "kekuatan": [], "celah": [] },
-    "selfLeadership": { "skor": 0, "kekuatan": [], "celah": [] },
-    "digital": { "skor": 0, "kekuatan": [], "celah": [] }
+    "analyticalThinking": { "skor": 0, "kekuatan": [], "celah": [] },
+    "resilienceAgility": { "skor": 0, "kekuatan": [], "celah": [] },
+    "aiAndDigital": { "skor": 0, "kekuatan": [], "celah": [] },
+    "interpersonalLeadership": { "skor": 0, "kekuatan": [], "celah": [] }
   },
-  "analisisRisiko": {
-    "level": "",
-    "persentaseRisiko": 0,
-    "konteksBenchmark": "",
-    "faktorRisiko": [],
-    "penjelasan": ""
-  },
-  "cvRewriteAdvice": [
-    {
-      "prioritas": "",
-      "bagianCV": "",
-      "masalah": "",
-      "saranPerbaikan": "",
-      "contohKalimat": ""
-    }
-  ],
+  "analisisRisiko": { "level": "", "persentaseRisiko": 0, "konteksBenchmark": "", "faktorRisiko": [], "penjelasan": "" },
+  "cvRewriteAdvice": [{ "prioritas": "", "bagianCV": "", "masalah": "", "saranPerbaikan": "", "contohKalimat": "" }],
   "rekomendasiAkhir": "",
-  "quickWins": [
-    {
-      "aksi": "",
-      "alasan": "",
-      "estimasiWaktu": ""
-    }
-  ]
+  "quickWins": [{ "aksi": "", "alasan": "", "estimasiWaktu": "" }]
 }`;
 }
 
@@ -514,24 +355,20 @@ async function analyzeWithGemini(prompt) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const geminiModel = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
   const model = genAI.getGenerativeModel({
     model: geminiModel,
     generationConfig: {
-      // temperature diturunkan dari 0.35 ke 0.20 supaya hasil antar generasi
-      // (skor numerik, estimasi gaji) lebih konsisten untuk CV yang sama.
-      // Trade-off: variasi diksi narasi sedikit berkurang, tapi user mendapat
-      // hasil yang dapat dipercaya saat me-generate ulang.
-      temperature: 0.20,
-      topP: 0.8,
-      topK: 32,
-      maxOutputTokens: 16000,
+      temperature: 0.15,
+      topP: 0.75,
+      topK: 24,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       responseMimeType: 'application/json',
     },
   });
 
-  const result = await model.generateContent(prompt);
+  const result = await withTimeout(model.generateContent(prompt), AI_TIMEOUT_MS);
   return cleanJsonResponse(result.response.text());
 }
 
@@ -670,7 +507,19 @@ export const handler = async event => {
     }
 
     const pdfData = await pdfParse(pdfPart.data);
-    const cvText = pdfData.text;
+
+    if (pdfData.numpages > MAX_PDF_PAGES) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: `PDF CV maksimal ${MAX_PDF_PAGES} halaman agar analisis tidak timeout di Netlify`,
+          code: 'PDF_TOO_MANY_PAGES',
+        }),
+      };
+    }
+
+    const cvText = compactCvText(pdfData.text);
 
     if (!cvText || cvText.trim().length < 50) {
       return {
@@ -710,6 +559,19 @@ export const handler = async event => {
     console.error('Function error:', err);
 
     const raw = err.message || 'Terjadi kesalahan server';
+    const isTimeout = raw.toLowerCase().includes('timeout') || raw.toLowerCase().includes('terlalu lama');
+
+    if (isTimeout) {
+      return {
+        statusCode: 504,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: 'Analisis terlalu lama diproses. Gunakan PDF CV maksimal 3 halaman, ringkas bagian sertifikasi, atau ulangi beberapa saat lagi.',
+          code: 'AI_TIMEOUT',
+        }),
+      };
+    }
+
     const clean = raw
       .split('[{')[0]
       .split('\n')[0]

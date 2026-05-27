@@ -1549,3 +1549,76 @@
   margin: 0;
   line-height: 1.55;
 }
+/* ── Career Archetype ───────────────────────────────────── */
+.archetypeCard { background:var(--bg-card);border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:var(--radius-xl);padding:22px 24px; }
+.archetypeName { font-size:1.3rem;font-weight:900;letter-spacing:-.5px;color:var(--text);margin-bottom:8px; }
+.archetypeDesc { font-size:.9rem;color:var(--text-secondary);line-height:1.7;margin-bottom:14px; }
+.archetypeListLabel { font-size:.72rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px; }
+.archetypeItem { display:flex;align-items:flex-start;gap:8px;font-size:.88rem;color:var(--text-secondary);padding:4px 0;line-height:1.5; }
+.archetypeDot { color:var(--accent);font-weight:800;flex-shrink:0; }
+
+/* ── Career Trajectory ──────────────────────────────────── */
+.trajectoryCard { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:22px 24px; }
+.trajectoryArah { font-size:.92rem;color:var(--text);line-height:1.7;margin-bottom:12px; }
+.trajectoryTransisi { font-size:.85rem;color:var(--text-secondary);margin-bottom:16px;padding:10px 14px;background:var(--bg-muted);border-radius:var(--radius-md);border-left:3px solid var(--accent); }
+.trajectoryTransisiLabel { font-weight:700;color:var(--text); }
+.faseList { display:flex;flex-direction:column;gap:0;padding-left:8px;border-left:2px solid var(--border);margin-top:8px; }
+.faseItem { display:flex;gap:16px;align-items:flex-start;padding:10px 0;position:relative; }
+.faseDot { width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 2px var(--accent);flex-shrink:0;margin-top:4px;margin-left:-6px; }
+.faseBody { flex:1; }
+.fasePeriode { font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px; }
+.faseJudul { font-size:.92rem;font-weight:700;color:var(--text);margin-bottom:3px; }
+.faseDesc { font-size:.85rem;color:var(--text-secondary);line-height:1.6;margin:0; }
+
+/* ── Hidden Advantage ───────────────────────────────────── */
+.advantageCard { background:var(--bg-card);border:1px solid var(--border);border-top:3px solid #8b5cf6;border-radius:var(--radius-xl);padding:20px 24px; }
+.advantageCombos { display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px; }
+.advantageChip { background:#f5f3ff;color:#8b5cf6;border:1px solid #ddd6fe;border-radius:var(--radius-full);padding:4px 12px;font-size:.82rem;font-weight:600; }
+.advantageText { font-size:.88rem;color:var(--text-secondary);line-height:1.65;margin:0 0 8px; }
+
+/* ── Market Positioning ─────────────────────────────────── */
+.positionCard { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px 24px; }
+.posisiUtama { font-size:1.1rem;font-weight:900;color:var(--text);letter-spacing:-.3px;margin-bottom:6px; }
+.nilaiPasar { font-size:.88rem;color:var(--text-secondary);line-height:1.65;margin-bottom:16px; }
+.positionGrid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.positionGroup { display:flex;flex-direction:column;gap:4px; }
+.positionGroupLabel { font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px; }
+.positionItem { font-size:.85rem;color:var(--text-secondary);padding:6px 10px;border-radius:var(--radius-md);border-left:3px solid var(--pos-color,var(--accent));background:var(--bg-muted);line-height:1.4; }
+@media(max-width:600px){.positionGrid{grid-template-columns:1fr;}}
+
+/* ── Pemetaan Kompetensi ────────────────────────────────── */
+.pillarGrid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.pillarCard { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px; }
+.pillarHeader { display:flex;align-items:center;gap:8px;margin-bottom:4px; }
+.pillarIcon { font-size:1rem;flex-shrink:0; }
+.pillarLabel { font-size:.82rem;font-weight:700;color:var(--text);flex:1; }
+.pillarScore { font-size:1rem;font-weight:900;flex-shrink:0; }
+.pillarItems { margin-top:8px;display:flex;flex-direction:column;gap:2px; }
+.pillarStrength { font-size:.78rem;color:#22c55e;line-height:1.45; }
+.pillarGap { font-size:.78rem;color:#f59e0b;line-height:1.45; }
+@media(max-width:600px){.pillarGrid{grid-template-columns:1fr;}}
+
+/* ── Analisis Risiko ────────────────────────────────────── */
+.riskCard { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px 24px; }
+.riskTop { display:flex;align-items:flex-start;gap:20px;margin-bottom:14px;flex-wrap:wrap; }
+.riskLevelWrap { display:flex;flex-direction:column;gap:6px;align-items:flex-start; }
+.riskLevelLabel { font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px; }
+.riskLevelBadge { border-radius:var(--radius-full);padding:4px 14px;font-size:.82rem;font-weight:800; }
+.riskPercent { flex:1; }
+.riskPercentNum { font-size:1.6rem;font-weight:900;letter-spacing:-1px;display:block;margin-bottom:4px; }
+.riskBenchmark { font-size:.78rem;color:var(--text-muted);font-style:italic;margin:6px 0 0; }
+.riskExplain { font-size:.88rem;color:var(--text-secondary);line-height:1.65;margin:0 0 12px; }
+.riskFactors { display:flex;flex-direction:column;gap:4px; }
+.riskFactor { font-size:.82rem;color:#ef4444;padding:4px 10px;background:#fef2f2;border-radius:var(--radius-md);line-height:1.4; }
+
+/* ── Career Risk ────────────────────────────────────────── */
+.careerRiskCard { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);padding:20px 24px;display:flex;flex-direction:column;gap:16px; }
+.criskBlock { display:flex;flex-direction:column;gap:6px; }
+.criskBlockLabel { font-size:.72rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px; }
+.criskBlockText { font-size:.88rem;color:var(--text-secondary);line-height:1.65;margin:0; }
+.criskCauses { display:flex;flex-direction:column;gap:4px; }
+.criskCause { font-size:.85rem;color:var(--text-secondary);padding:4px 0; }
+.criskSolutions { display:flex;flex-direction:column;gap:0; }
+.criskSolution { display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border); }
+.criskSolutionNum { width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px; }
+.criskSolution p { font-size:.88rem;color:var(--text-secondary);line-height:1.65;margin:0; }

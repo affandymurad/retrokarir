@@ -74,7 +74,7 @@ function LoadingOverlay({ modelName }) {
         </div>
 
         <p className={styles.loadingNote}>
-          Proses ini membutuhkan 30–90 detik tergantung kompleksitas CV Anda.
+          Agar stabil di Netlify, unggah CV PDF maksimal 3 halaman.
         </p>
       </div>
     </div>
@@ -82,6 +82,21 @@ function LoadingOverlay({ modelName }) {
 }
 
 const WORK_TYPES = ['Full Time', 'Part Time', 'Remote', 'Hybrid'];
+const MAX_PDF_PAGES = 3;
+
+async function countPdfPages(file) {
+  const buffer = await file.arrayBuffer();
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
+
+  const pageMatches = text.match(/\/Type\s*\/Page(?!s)\b/g);
+  if (pageMatches?.length) return pageMatches.length;
+
+  const countMatches = [...text.matchAll(/\/Count\s+(\d+)/g)]
+    .map(match => Number(match[1]))
+    .filter(n => Number.isFinite(n) && n > 0);
+
+  return countMatches.length ? Math.max(...countMatches) : 0;
+}
 
 // Konversi string tanggal dari berbagai format ke ISO yyyy-mm-dd.
 // Safari iOS tidak support input[type=date] — user ketik manual dengan format bervariasi.
@@ -113,6 +128,7 @@ function supportsDateInput() {
 
 export default function FormPage({ onSubmit }) {
   const [pdfFile, setPdfFile] = useState(null);
+  const [pdfPageCount, setPdfPageCount] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -130,24 +146,63 @@ export default function FormPage({ onSubmit }) {
     setHasDateSupport(supportsDateInput());
   }, []);
 
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return;
-    if (file.type !== 'application/pdf') {
+
+    const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+
+    setPdfFile(null);
+    setPdfPageCount(null);
+
+    if (!isPdf) {
       setErrors(e => ({ ...e, pdf: 'Hanya file PDF yang diterima' }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
+
     if (file.size > 10 * 1024 * 1024) {
       setErrors(e => ({ ...e, pdf: 'Ukuran file maksimum 10 MB' }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    setPdfFile(file);
-    setErrors(e => ({ ...e, pdf: null }));
+
+    try {
+      const pages = await countPdfPages(file);
+
+      if (!pages) {
+        setErrors(e => ({
+          ...e,
+          pdf: 'Jumlah halaman PDF tidak dapat dibaca. Coba ekspor ulang CV sebagai PDF standar.',
+        }));
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      if (pages > MAX_PDF_PAGES) {
+        setErrors(e => ({
+          ...e,
+          pdf: `CV maksimal ${MAX_PDF_PAGES} halaman agar analisis tidak timeout di Netlify. PDF ini terdeteksi ${pages} halaman.`,
+        }));
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      setPdfFile(file);
+      setPdfPageCount(pages);
+      setErrors(e => ({ ...e, pdf: null, submit: null }));
+    } catch (err) {
+      setErrors(e => ({
+        ...e,
+        pdf: 'Gagal membaca jumlah halaman PDF. Coba gunakan PDF hasil export ulang.',
+      }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
-  const onDrop = useCallback((e) => {
+  const onDrop = useCallback(async (e) => {
     e.preventDefault();
     setDragging(false);
-    handleFile(e.dataTransfer.files[0]);
+    await handleFile(e.dataTransfer.files[0]);
   }, []);
 
   const toggleWorkType = (wt) => {
@@ -183,6 +238,7 @@ export default function FormPage({ onSubmit }) {
   const validate = () => {
     const errs = {};
     if (!pdfFile) errs.pdf = 'CV wajib diunggah';
+    if (pdfFile && pdfPageCount > MAX_PDF_PAGES) errs.pdf = `CV maksimal ${MAX_PDF_PAGES} halaman`; 
     if (!fullName.trim()) errs.fullName = 'Nama lengkap wajib diisi';
     if (!birthDate) {
       errs.birthDate = 'Tanggal lahir wajib diisi';
@@ -236,7 +292,7 @@ export default function FormPage({ onSubmit }) {
     }
   };
 
-const isValid = pdfFile && fullName && birthDate && gender && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
+const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && fullName && birthDate && gender && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
 
   return (
     <>
@@ -260,15 +316,18 @@ const isValid = pdfFile && fullName && birthDate && gender && workTypes.length >
             onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <input type="file" ref={fileInputRef} accept=".pdf" hidden onChange={e => handleFile(e.target.files[0])} />
+            <input type="file" ref={fileInputRef} accept=".pdf" hidden onChange={async e => handleFile(e.target.files[0])} />
             {pdfFile ? (
               <div className={styles.fileInfo}>
                 <PdfIcon />
                 <div>
                   <div className={styles.fileName}>{pdfFile.name}</div>
-                  <div className={styles.fileSize}>{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                  <div className={styles.fileSize}>
+                    {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                    {pdfPageCount ? ` · ${pdfPageCount} halaman` : ''}
+                  </div>
                 </div>
-                <button className={styles.removeFile} onClick={e => { e.stopPropagation(); setPdfFile(null); }}>
+                <button className={styles.removeFile} onClick={e => { e.stopPropagation(); setPdfFile(null); setPdfPageCount(null); }}>
                   <XIcon />
                 </button>
               </div>
@@ -276,10 +335,11 @@ const isValid = pdfFile && fullName && birthDate && gender && workTypes.length >
               <div className={styles.dropContent}>
                 <UploadIcon />
                 <div className={styles.dropText}>Seret & lepas PDF di sini, atau <span className={styles.dropLink}>klik untuk pilih</span></div>
-                <div className={styles.dropHint}>Format PDF · Maks. 10 MB</div>
+                <div className={styles.dropHint}>Format PDF · Maks. 3 halaman · Maks. 10 MB</div>
               </div>
             )}
           </div>
+          <div className={styles.pdfLimitHint}>CV panjang sebaiknya diringkas ke 1–3 halaman agar proses analisis stabil di Netlify.</div>
           {errors.pdf && <span className={styles.error}>{errors.pdf}</span>}
         </div>
 

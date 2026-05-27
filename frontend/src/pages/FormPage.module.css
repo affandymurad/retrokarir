@@ -272,6 +272,14 @@
 
 .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; }
 
+.pdfLimitHint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+
 /* Errors */
 .error { font-size: 0.78rem; color: var(--danger); display: block; margin-top: 4px; }
 

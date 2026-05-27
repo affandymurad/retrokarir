@@ -2,29 +2,13 @@ import React, { useRef, useState } from 'react';
 import styles from './ResultPage.module.css';
 
 const RISK_COLOR = { Rendah: '#22c55e', Sedang: '#f59e0b', Tinggi: '#ef4444' };
-const PILLAR_LABELS = {
-  kognitif: 'Kognitif', interpersonal: 'Interpersonal',
-  selfLeadership: 'Self-Leadership', digital: 'Digital'
-};
-const FP_LABELS = {
-  aiResistance:          { label: 'AI Resistance',          icon: '🤖' },
-  leadershipPotential:   { label: 'Leadership Potential',   icon: '👥' },
-  globalMobility:        { label: 'Global Mobility',        icon: '🌏' },
-  technicalDepth:        { label: 'Technical Depth',        icon: '⚡' },
-};
-const SMART_CAT_COLOR = {
-  'Pelatihan':'#22c55e','Kompetisi':'#f59e0b','Sertifikasi':'#8b5cf6',
-  'Aksi Jangka Pendek':'#22c55e','Aksi Jangka Menengah':'#f59e0b','Aksi Jangka Panjang':'#8b5cf6'
-};
-const SMART_CAT_ICON = {
-  'Pelatihan':'📚','Kompetisi':'🏆','Sertifikasi':'📜',
-  'Aksi Jangka Pendek':'⚡','Aksi Jangka Menengah':'📈','Aksi Jangka Panjang':'🎯'
-};
+const CONFIDENCE_COLOR = { Tinggi: '#22c55e', Sedang: '#f59e0b', Rendah: '#ef4444' };
 
-const CONFIDENCE_COLOR = {
-  Tinggi: '#22c55e',
-  Sedang: '#f59e0b',
-  Rendah: '#ef4444',
+const PILLAR_LABELS = {
+  analyticalThinking:      { label: 'Analytical Thinking',       icon: '🧠' },
+  resilienceAgility:       { label: 'Resilience & Agility',       icon: '🔄' },
+  aiAndDigital:            { label: 'AI & Digital Literacy',      icon: '💻' },
+  interpersonalLeadership: { label: 'Interpersonal & Leadership', icon: '🤝' },
 };
 
 
@@ -157,56 +141,6 @@ function ScoreBar({ value, color }) {
   );
 }
 
-function FpRadarChart({ data }) {
-  const keys = ['aiResistance', 'leadershipPotential', 'globalMobility', 'technicalDepth'];
-  const labels = ['AI Resistance', 'Leadership', 'Global Mobility', 'Tech Depth'];
-  const cx = 130, cy = 120, r = 85;
-  const angles = keys.map((_, i) => (Math.PI * 2 * i) / keys.length - Math.PI / 2);
-  const pt = (angle, radius) => [
-    cx + radius * Math.cos(angle),
-    cy + radius * Math.sin(angle),
-  ];
-  const scores = keys.map(k => clampScore(data[k]?.skor));
-  const dataPoints = scores.map((s, i) => pt(angles[i], (s / 100) * r));
-  const polyPoints = dataPoints.map(([x, y]) => `${x},${y}`).join(' ');
-  const gridLevels = [25, 50, 75, 100];
-
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-      <svg width="260" height="240" viewBox="0 0 260 240" style={{ overflow: 'visible' }}>
-        {gridLevels.map(level => {
-          const pts = angles.map(a => pt(a, (level / 100) * r));
-          return (
-            <polygon key={level}
-              points={pts.map(([x, y]) => `${x},${y}`).join(' ')}
-              fill="none" stroke="var(--border, #e2e8f0)" strokeWidth="1"
-            />
-          );
-        })}
-        {angles.map((angle, i) => {
-          const [x, y] = pt(angle, r);
-          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border, #e2e8f0)" strokeWidth="1" />;
-        })}
-        <polygon points={polyPoints} fill="#3b82f620" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
-        {dataPoints.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="4" fill="#3b82f6" />
-        ))}
-        {angles.map((angle, i) => {
-          const [x, y] = pt(angle, r + 18);
-          const anchor = Math.abs(Math.cos(angle)) < 0.1 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end';
-          return (
-            <text key={i} x={x} y={y} textAnchor={anchor} fontSize="9.5" fontWeight="700"
-              fill="var(--text-secondary, #64748b)" fontFamily="var(--font-body, sans-serif)">
-              {labels[i]}
-              <tspan x={x} dy="11" fill={getScoreColor(scores[i])} fontWeight="900">{scores[i]}</tspan>
-            </text>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
 const TEMA_COLOR = {
   'Bahasa Inggris': '#3b82f6',
   'Metrik Dampak': '#f59e0b',
@@ -312,13 +246,6 @@ export default function ResultPage({ result, meta, onBack }) {
           `).join('')
       : '';
 
-    const fpRows = r.futureProofScore
-      ? Object.entries(FP_LABELS).map(([key, { label, icon }]) => {
-          const d = r.futureProofScore[key]; if (!d) return '';
-          return `<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;"><span style="font-size:12px;font-weight:600;">${icon} ${label}</span><strong style="color:${sc(d.skor)};font-size:13px;">${d.skor}/100</strong></div>${bar(d.skor,sc(d.skor))}${d.keterangan?`<p style="font-size:11px;color:#64748b;margin:0;">${d.keterangan}</p>`:''}</div>`;
-        }).join('')
-      : '';
-    
     const quickWinsRows = Array.isArray(r.quickWins) && r.quickWins.length > 0
       ? r.quickWins.map((item, idx) => `
         <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;break-inside:avoid;page-break-inside:avoid;">
@@ -376,48 +303,29 @@ ${r.ringkasanAwam?h2('💬 Penjelasan Sederhana')+`<div style="border:1px solid 
   .map(([k,l,ic,c])=>{const t=r.ringkasanAwam[k];if(!t)return'';return`<div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f5f9;"><span style="font-size:16px;flex-shrink:0;">${ic}</span><div><div style="font-size:10px;font-weight:800;color:${c};text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">${l}</div><p style="font-size:13px;color:#334155;line-height:1.6;margin:0;">${t}</p></div></div>`}).join('')
 }</div>`:''}
 
+${r.pemetaanKompetensi ? h2('📊 Pemetaan Kompetensi') + `<p style="font-size:11px;color:#64748b;font-style:italic;margin:0 0 12px;">Berdasarkan 4 pilar Global Skills Taxonomy 2025 (WEF).</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${
+  [['analyticalThinking','🧠','Analytical Thinking'],['resilienceAgility','🔄','Resilience & Agility'],['aiAndDigital','💻','AI & Digital Literacy'],['interpersonalLeadership','🤝','Interpersonal & Leadership']]
+  .map(([k,ic,l])=>{const d=r.pemetaanKompetensi[k];if(!d)return'';const c=sc(clampScore(d.skor));return`<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;break-inside:avoid;page-break-inside:avoid;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;"><span style="font-size:11px;font-weight:700;color:#0f172a;">${ic} ${l}</span><strong style="font-size:13px;color:${c};">${d.skor}</strong></div>${bar(clampScore(d.skor),c)}${Array.isArray(d.kekuatan)?d.kekuatan.map(s=>`<div style="font-size:10px;color:#16a34a;padding:1px 0;line-height:1.4;">✓ ${safeString(s)}</div>`).join(''):''}${Array.isArray(d.celah)?d.celah.map(s=>`<div style="font-size:10px;color:#d97706;padding:1px 0;line-height:1.4;">△ ${safeString(s)}</div>`).join(''):''}</div>`;}).join('')
+}</div>` : ''}
+
+${r.analisisRisiko ? (()=>{const rc={Rendah:'#22c55e',Sedang:'#f59e0b',Tinggi:'#ef4444'};const lv=r.analisisRisiko.level||'';const col=rc[lv]||'#64748b';return h2('⚠️ Analisis Risiko Karier')+`<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;"><span style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:999px;padding:4px 14px;font-size:11px;font-weight:800;">${safeString(lv)}</span>${r.analisisRisiko.persentaseRisiko?`<span style="font-size:16px;font-weight:900;color:${col};">${r.analisisRisiko.persentaseRisiko}%</span>`:''} ${r.analisisRisiko.konteksBenchmark?`<span style="font-size:10px;color:#94a3b8;font-style:italic;">${safeString(r.analisisRisiko.konteksBenchmark)}</span>`:''}</div>${r.analisisRisiko.persentaseRisiko?bar(r.analisisRisiko.persentaseRisiko,col):''}${r.analisisRisiko.penjelasan?`<p style="font-size:12px;color:#475569;line-height:1.65;margin:8px 0 10px;">${safeString(r.analisisRisiko.penjelasan)}</p>`:''}${Array.isArray(r.analisisRisiko.faktorRisiko)?r.analisisRisiko.faktorRisiko.map(f=>`<div style="font-size:11px;color:#ef4444;padding:3px 8px;background:#fef2f2;border-radius:6px;margin-bottom:4px;">⚠ ${safeString(f)}</div>`).join(''):''}`;})() : ''}
+
 ${r.kataKunciJobSeeker?h2('🔍 Kata Kunci Job Seeker')+`<div style="display:flex;flex-direction:column;gap:10px;">${
   [['posisi','Posisi / Jabatan','#22c55e','#f0fdf4','#bbf7d0'],['keahlian','Keahlian & Skill','#8b5cf6','#f5f3ff','#ddd6fe']]
   .map(([k,l,c,bg,b])=>{const items=r.kataKunciJobSeeker[k];if(!items?.length)return'';return`<div><div style="font-size:10px;font-weight:800;color:${c};text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">${l}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${items.map(it=>pill(it,c,bg,b)).join('')}</div></div>`}).join('')
 }</div>`:''}
 
-${r.futureProofScore?h2('🛡 Future-Proof Score')+`<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:10px;">${fpRows}</div>`:''}
-
 ${cvRows ? h2('📝 Saran Perbaikan CV') + `
-  <div style="
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    overflow:visible;
-    padding:0 16px;
-  ">
+  <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:visible;padding:0 16px;">
     ${cvRows}
   </div>
 ` : ''}
 
 ${r.marketValue && Object.keys(r.marketValue).length > 1 ? h2('💰 Estimasi Market Value') + `
-  <div style="
-    border:1px solid #e2e8f0;
-    border-radius:10px;
-    overflow:visible;
-    padding:0 16px;
-    break-inside:auto;
-    page-break-inside:auto;
-  ">
+  <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:visible;padding:0 16px;break-inside:auto;page-break-inside:auto;">
     ${mvRows}
   </div>
-  ${r.marketValue.catatan ? `
-    <p style="
-      font-size:10.5px;
-      color:#94a3b8;
-      font-style:italic;
-      line-height:1.55;
-      margin-top:6px;
-      overflow-wrap:anywhere;
-      word-break:break-word;
-    ">
-      ${r.marketValue.catatan}
-    </p>
-  ` : ''}
+  ${r.marketValue.catatan ? `<p style="font-size:10.5px;color:#94a3b8;font-style:italic;line-height:1.55;margin-top:6px;overflow-wrap:anywhere;word-break:break-word;">${r.marketValue.catatan}</p>` : ''}
 ` : ''}
 
 ${r.rekomendasiAkhir?`<div style="background:linear-gradient(135deg,#eff6ff,#f8fafc);border:2px solid #3b82f6;border-radius:14px;padding:22px 26px;margin-top:28px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:18px;">💡</span><span style="font-size:13px;font-weight:900;color:#3b82f6;letter-spacing:-.3px;white-space:nowrap;">Rekomendasi Akhir</span></div><p style="font-size:13px;line-height:1.8;color:#0f172a;">${r.rekomendasiAkhir}</p></div>`:''}
@@ -452,8 +360,6 @@ ${quickWinsRows ? h2('⚡ Mulai Minggu Ini') + `
       }, 200);
     });
   };
-
-  const p = result.pemetaanKompetensi;
 
   return (
     <div className={styles.page}>
@@ -509,35 +415,76 @@ ${quickWinsRows ? h2('⚡ Mulai Minggu Ini') + `
             </div>
           </section>
         )}
-
-        {/* 3 — Future-Proof Score */}
-        {result.futureProofScore && (
+        {/* 2e — Pemetaan Kompetensi */}
+        {result.pemetaanKompetensi && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>🛡 Future-Proof Score</h2>
-            <FpRadarChart data={result.futureProofScore} />
-            <div className={styles.fpGrid}>
-              {Object.entries(FP_LABELS).map(([key, { label, icon }]) => {
-                const d = result.futureProofScore[key];
+            <h2 className={styles.sectionTitle}>📊 Pemetaan Kompetensi</h2>
+            <p className={styles.objectiveHint}>Berdasarkan 4 pilar Global Skills Taxonomy 2025 (WEF).</p>
+            <div className={styles.pillarGrid}>
+              {Object.entries(PILLAR_LABELS).map(([key, { label, icon }]) => {
+                const d = result.pemetaanKompetensi[key];
                 if (!d) return null;
-                const scoreC = getScoreColor(d.skor);
+                const scoreC = getScoreColor(clampScore(d.skor));
                 return (
-                  <div key={key} className={styles.fpCard}>
-                    <div className={styles.fpHeader}>
-                      <span className={styles.fpIcon}>{icon}</span>
-                      <span className={styles.fpLabel}>{label}</span>
-                      <span className={styles.fpScore} style={{color: scoreC}}>{d.skor}</span>
+                  <div key={key} className={styles.pillarCard}>
+                    <div className={styles.pillarHeader}>
+                      <span className={styles.pillarIcon}>{icon}</span>
+                      <span className={styles.pillarLabel}>{label}</span>
+                      <span className={styles.pillarScore} style={{color: scoreC}}>{d.skor}</span>
                     </div>
-                    <ScoreBar value={d.skor} color={scoreC} />
-                    {d.keterangan && <p className={styles.fpNote}>{d.keterangan}</p>}
+                    <ScoreBar value={clampScore(d.skor)} color={scoreC} />
+                    {Array.isArray(d.kekuatan) && d.kekuatan.length > 0 && (
+                      <div className={styles.pillarItems}>
+                        {d.kekuatan.map((k, i) => <div key={i} className={styles.pillarStrength}>✓ {safeString(k)}</div>)}
+                      </div>
+                    )}
+                    {Array.isArray(d.celah) && d.celah.length > 0 && (
+                      <div className={styles.pillarItems}>
+                        {d.celah.map((c, i) => <div key={i} className={styles.pillarGap}>△ {safeString(c)}</div>)}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-
           </section>
         )}
 
-        {/* 4 — Kata Kunci Job Seeker */}
+        {/* 2f — Analisis Risiko */}
+        {result.analisisRisiko && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>⚠️ Analisis Risiko Karier</h2>
+            <div className={styles.riskCard}>
+              <div className={styles.riskTop}>
+                <div className={styles.riskLevelWrap}>
+                  <span className={styles.riskLevelLabel}>Tingkat Risiko</span>
+                  <span className={styles.riskLevelBadge} style={{background: `${RISK_COLOR[result.analisisRisiko.level]}18`, color: RISK_COLOR[result.analisisRisiko.level], border: `1px solid ${RISK_COLOR[result.analisisRisiko.level]}44`}}>
+                    {safeString(result.analisisRisiko.level)}
+                  </span>
+                </div>
+                {result.analisisRisiko.persentaseRisiko > 0 && (
+                  <div className={styles.riskPercent}>
+                    <span className={styles.riskPercentNum} style={{color: RISK_COLOR[result.analisisRisiko.level]}}>{result.analisisRisiko.persentaseRisiko}%</span>
+                    <ScoreBar value={result.analisisRisiko.persentaseRisiko} color={RISK_COLOR[result.analisisRisiko.level]} />
+                    {result.analisisRisiko.konteksBenchmark && <p className={styles.riskBenchmark}>{safeString(result.analisisRisiko.konteksBenchmark)}</p>}
+                  </div>
+                )}
+              </div>
+              {result.analisisRisiko.penjelasan && (
+                <p className={styles.riskExplain}>{safeString(result.analisisRisiko.penjelasan)}</p>
+              )}
+              {Array.isArray(result.analisisRisiko.faktorRisiko) && result.analisisRisiko.faktorRisiko.length > 0 && (
+                <div className={styles.riskFactors}>
+                  {result.analisisRisiko.faktorRisiko.map((f, i) => (
+                    <div key={i} className={styles.riskFactor}>⚠ {safeString(f)}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* 3 — Kata Kunci Job Seeker */}
         {result.kataKunciJobSeeker && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>🔍 Kata Kunci untuk LinkedIn & Job Portal</h2>

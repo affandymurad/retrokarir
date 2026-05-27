@@ -151,6 +151,155 @@
   flex-shrink: 0;
 }
 
+
+/* ── Skill gap support ─────────────────────────────────────── */
+.supportSection {
+  max-width: 900px;
+  margin: 0 auto 52px;
+  padding: 0 20px;
+}
+
+.supportIntro {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-muted));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 28px 24px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.supportIntro::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+}
+
+.supportEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--accent-text);
+  background: var(--accent-light);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.supportTitle {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  color: var(--text);
+  margin-bottom: 10px;
+  max-width: 720px;
+}
+
+.supportLead {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 760px;
+}
+
+.supportGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.supportCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.supportCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: var(--shadow-sm);
+}
+
+.supportIconWrap {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  margin-bottom: 12px;
+}
+
+.supportIcon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.supportTag {
+  width: fit-content;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--accent-text);
+  background: var(--accent-light);
+  border-radius: var(--radius-full);
+  padding: 3px 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.supportCardTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.supportBody {
+  font-size: 0.8rem;
+  line-height: 1.62;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  flex: 1;
+}
+
+.supportMetric {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  border-radius: var(--radius-full);
+}
+
+.supportSource {
+  margin-top: 12px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  text-align: right;
+  font-style: italic;
+}
+
 /* ── Shared carousel section ────────────────────────────────── */
 .carouselSection {
   max-width: 900px;
@@ -517,6 +666,12 @@
   margin-bottom: 28px;
 }
 
+@media (max-width: 820px) {
+  .supportGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .hero {
@@ -554,6 +709,27 @@
   .statLabel {
     font-size: 0.72rem;
     max-width: 95px;
+  }
+
+  .supportSection {
+    padding: 0 16px;
+    margin-bottom: 40px;
+  }
+
+  .supportIntro {
+    padding: 22px 18px;
+  }
+
+  .supportGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .supportCard {
+    min-height: auto;
+  }
+
+  .supportSource {
+    text-align: left;
   }
 
   .carouselSection {
