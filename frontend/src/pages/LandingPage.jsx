@@ -123,16 +123,16 @@ const SECTORS = [
 const OUTLOOKS = [
   {
     icon: '⚡',
-    tag: 'Peluang 2025–2026',
+    tag: 'Peluang 2026',
     tagColor: '#3b82f6',
     tagBg: '#eff6ff',
     headline: 'Target 82% Penetrasi Internet Membuka Lapangan Kerja Digital Baru',
-    body: 'Indonesia Digital Nation Roadmap 2021–2024 menargetkan 82% penetrasi internet dan 50% tenaga kerja dengan keterampilan digital menengah-atas. Ini membuka peluang besar bagi siapapun yang mau naik level dari keterampilan dasar ke lanjutan — mengingat hanya <1% tenaga kerja saat ini sudah di level advanced.',
+    body: 'Melanjutkan arah Indonesia Digital Nation Roadmap, kebijakan digital nasional menargetkan 82% penetrasi internet dan 50% tenaga kerja dengan keterampilan digital menengah-atas. Ini membuka peluang besar bagi siapapun yang mau naik level dari keterampilan dasar ke lanjutan — mengingat hanya <1% tenaga kerja saat ini sudah di level advanced.',
     footnote: 'Sumber: Indonesia Digital Nation Roadmap 2021–2024 & Making Indonesia 4.0',
   },
   {
     icon: '🔄',
-    tag: 'Risiko 2025–2027',
+    tag: 'Risiko 2026–2027',
     tagColor: '#ef4444',
     tagBg: '#fef2f2',
     headline: 'Just Transition: Tidak Ada yang Ditinggalkan',
@@ -192,7 +192,7 @@ export default function LandingPage({ onStart }) {
     <div className={styles.page}>
       {/* ── Hero ── */}
       <section className={styles.hero}>
-        <div className={styles.badge}>✦ AI Career Intelligence · 2025–2026</div>
+        <div className={styles.badge}>✦ AI Career Intelligence · 2026</div>
         <h1 className={styles.heroTitle}>
           Karier kamu di<br />
           <span className={styles.heroAccent}>era AI & transisi hijau</span>
@@ -251,7 +251,7 @@ export default function LandingPage({ onStart }) {
       <section className={styles.carouselSection}>
         <div className={styles.carouselHeader}>
           <div>
-            <p className={styles.sectionTitle}>Lanskap Pasar Kerja 2025</p>
+            <p className={styles.sectionTitle}>Lanskap Pasar Kerja 2026</p>
             <p className={styles.sectionSub}>Data & tren yang membentuk karier kamu berikutnya</p>
           </div>
           <div className={styles.carouselNav}>
@@ -302,7 +302,7 @@ export default function LandingPage({ onStart }) {
       <section className={styles.carouselSection}>
         <div className={styles.carouselHeader}>
           <div>
-            <p className={styles.sectionTitle}>Sektor Prioritas 2025–2029</p>
+            <p className={styles.sectionTitle}>Sektor Prioritas 2026–2029</p>
             <p className={styles.sectionSub}>Industri dengan permintaan talenta tertinggi</p>
           </div>
           <div className={styles.carouselNav}>
@@ -428,7 +428,7 @@ export default function LandingPage({ onStart }) {
           <div>
             <span className={styles.privacyTitle}>Privasi & Keamanan Data</span>
             <span className={styles.privacyText}>
-              CV kamu <strong>tidak disimpan</strong> di server kami. Analisis dilakukan secara real-time dan data langsung dihapus setelah laporan digenerate. Tidak ada penyimpanan permanen, tidak ada iklan, tidak ada pihak ketiga.
+              CV kamu <strong>tidak disimpan</strong> di server kami. Teks CV diproses sementara di memori, dikirim terenkripsi (HTTPS) ke API Google Gemini hanya untuk keperluan analisis, lalu langsung dibuang setelah laporan digenerate. Tidak ada penyimpanan permanen, tidak ada iklan, dan data tidak dipakai untuk hal lain.
             </span>
           </div>
         </div>
@@ -438,7 +438,7 @@ export default function LandingPage({ onStart }) {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Siap tahu posisi kariermu sebenarnya?</h2>
         <p className={styles.ctaBody}>
-          Upload CV, isi data singkat, dan dapatkan laporan karier berbasis AI dalam hitungan menit. Gratis, privat, dan relevan dengan kondisi pasar kerja Indonesia 2025–2026 — dari jalur formal, informal, freelance, hingga transisi karier digital.
+          Upload CV, isi data singkat, dan dapatkan laporan karier berbasis AI dalam hitungan menit. Gratis, privat, dan relevan dengan kondisi pasar kerja Indonesia 2026 — dari jalur formal, informal, freelance, hingga transisi karier digital.
         </p>
         <button className={styles.ctaBtn} onClick={onStart}>
           Mulai Analisis CV →

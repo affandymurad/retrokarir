@@ -67,6 +67,33 @@ function repairJson(raw) {
   }
 }
 
+// Cari objek JSON teratas dimulai dari brace pertama, dengan menghitung
+// kedalaman { } sambil menghormati string/escape. Ini menghindari bug
+// lastIndexOf('}') yang salah ambil brace dari teks tambahan yang kadang
+// disisipkan Gemini setelah objek JSON valid selesai.
+function extractJsonObject(text, firstBrace) {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = firstBrace; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(firstBrace, i + 1);
+    }
+  }
+
+  // Tidak ketemu penutup — kemungkinan output terpotong (token limit).
+  // Kembalikan sampai akhir teks agar repairJson bisa menutup strukturnya.
+  return text.slice(firstBrace);
+}
+
 function cleanJsonResponse(text) {
   const cleaned = String(text || '')
     .replace(/```json\n?/g, '')
@@ -74,13 +101,12 @@ function cleanJsonResponse(text) {
     .trim();
 
   const firstBrace = cleaned.indexOf('{');
-  const lastBrace = cleaned.lastIndexOf('}');
 
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+  if (firstBrace === -1) {
     throw new Error('Respons AI bukan JSON yang valid');
   }
 
-  const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+  const candidate = extractJsonObject(cleaned, firstBrace);
 
   // First try: parse as-is
   try {
@@ -283,16 +309,18 @@ ATURAN UTAMA
 - Jika CV tidak menyebut metrik seperti jumlah user, revenue, SLA, ukuran tim, efisiensi, atau skala sistem, nyatakan sebagai gap.
 - Hindari hiperbola dan klaim absolut.
 - Dilarang memakai frasa: "talenta langka", "kelas dunia", "panggung dunia", "sangat aman dari otomasi", "tech-giant", "jaminan", "sudah pasti", "professional student".
-- Untuk proyek publik seperti eHAC, gunakan istilah "proyek layanan publik berskala luas". Jangan klaim jumlah pengguna jika tidak ada data eksplisit.
-- Bahasa Inggris: target bertahap. TOEFL ITP 550+ atau IELTS 6.5 dulu, lalu IELTS 7.0 jika mengejar pasar global.
+- Untuk proyek layanan publik atau proyek berskala luas, jangan klaim jumlah pengguna atau skala jika tidak ada data eksplisit di CV.
+- Jika bahasa Inggris relevan untuk target role: sarankan target bertahap (TOEFL ITP 550+ atau IELTS 6.5 dulu, IELTS 7.0 jika mengejar pasar global).
 - Rekomendasi harus realistis untuk 6–12 bulan.
 
 PRINSIP ANALISIS
 - Baca pola karier, bukan hanya daftar skill.
 - Nilai berdasarkan bukti CV.
-- Gunakan konteks 2025: AI literacy, analytical thinking, resilience, leadership, dan kebutuhan upskilling mandiri.
+- Acu kerangka Standar Kompetensi Kerja Nasional Indonesia (SKKNI) untuk bidang yang relevan. Jika SKKNI bidang tersebut belum tersedia atau tidak merata, gunakan praktik pasar umum sebagai acuan.
+- Baca pengalaman informal, freelance, UMKM, kerja proyek, dan komunitas sebagai bukti kompetensi yang sah — terjemahkan ke bahasa kompetensi formal.
+- Gunakan konteks pasar kerja 2026: AI literacy, analytical thinking, resilience, leadership, green skills, dan kebutuhan upskilling mandiri.
 - Jika posisi rentan otomasi, beri jalur transisi konkret ke peran yang lebih augmented.
-- Jangan Jakarta-sentris jika lokasi target berbeda.
+- Jangan Jakarta-sentris: sesuaikan dengan konteks industri lokal lokasi target. Singgung peluang green economy hanya jika relevan dengan profil.
 
 SKOR
 Semua skor integer 0–100.
@@ -303,12 +331,12 @@ KETENTUAN FIELD
 - profilRingkas.bidangKarier: maks 6 kata.
 - ringkasanAwam: setiap sub-field maks 2 kalimat. pesanPenyemangat wajib menyebut minimal 1 proyek/perusahaan/pencapaian spesifik dari CV.
 - pemetaanKompetensi: 4 pilar. Tiap pilar berisi 2 kekuatan dan 1 celah. Maks 12 kata per item.
-- analisisRisiko.level hanya "Rendah", "Sedang", atau "Tinggi". persentaseRisiko 20–45 untuk profil senior multi-skill. faktorRisiko 2 item.
+- analisisRisiko.level hanya "Rendah", "Sedang", atau "Tinggi". persentaseRisiko: 20–45 untuk profil senior multi-skill, 30–55 untuk fresh graduate/early career dengan tugas dominan rutin. faktorRisiko 2 item. Jika level Sedang/Tinggi, penjelasan wajib memuat jalur transisi peran.
 - kataKunciJobSeeker.posisi: 6–8 jabatan.
 - kataKunciJobSeeker.keahlian: 8–10 skill teknis/non-teknis.
 - cvRewriteAdvice: tepat 4 item. prioritas hanya "Tinggi", "Sedang", atau "Rendah". contohKalimat maksimal 1 kalimat. Jangan karang metrik; gunakan [X%], [N pengguna], atau [N karyawan] jika perlu.
 - rekomendasiAkhir: sebut nama, 1–2 keunggulan unik, 1 gap utama, dan 1 target 6–12 bulan. Maks 3 kalimat.
-- quickWins: tepat 3 langkah minggu ini. aksi maks 12 kata dan bisa dilakukan tanpa biaya besar.
+- quickWins: tepat 3 langkah minggu ini, berjenjang — langkah 1 ±15 menit, langkah 2 ±1 jam, langkah 3 ±3 jam; isi estimasiWaktu sesuai jenjang itu. aksi maks 12 kata dan bisa dilakukan tanpa biaya besar. Jika ada kebutuhan pelatihan, arahkan ke kanal resmi: Skillhub/Karirhub (SIAPkerja Kemnaker) atau Digital Talent Scholarship (Komdigi).
 - marketValue.catatan wajib berisi metodologi singkat.
 
 ATURAN MARKET VALUE
@@ -325,6 +353,7 @@ Batas atas konservatif:
 - Tier C L3 maks USD 4.5K/bln; L4/L5 maks USD 6K/bln.
 - Tier D Jakarta product L3 maks Rp 30 juta/bln; L4/L5 kuat maks Rp 50 juta/bln.
 - Tier D non-product L3 maks Rp 20 juta/bln.
+Level L3/L4/L5 hanya untuk role teknologi/product. Untuk role non-teknologi (administrasi, pendidikan, layanan, operasional, dsb.), gunakan jenjang junior/mid/senior dengan acuan gaji pasar lokal yang wajar dan konservatif.
 Faktor koreksi: kurangi 10–20% jika bahasa Inggris belum kuat, tidak ada metrik dampak bisnis, mayoritas pengalaman internal IT/non-product, banyak sertifikasi tetapi minim bukti deployment, atau belum ada rekam jejak pasar target.
 Kurs: USD×16.000, SGD×11.500, MYR×3.500, AED×4.350, QAR×4.400, EUR×17.500, GBP×20.500, JPY×105, AUD×10.500.
 Format value lokasi: "Baseline realistis [rentang mata uang/bln] untuk [level role]. Upper-market [angka] dapat dicapai jika [syarat eksplisit]. [Catatan onsite/remote/pajak/total compensation]."
@@ -357,7 +386,7 @@ async function analyzeWithGemini(prompt) {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite-preview';
 
   const model = genAI.getGenerativeModel({
     model: geminiModel,
@@ -374,6 +403,23 @@ async function analyzeWithGemini(prompt) {
   return cleanJsonResponse(result.response.text());
 }
 
+// pdf-parse (via pdf.js) menulis warning font non-fatal seperti
+// "TT: undefined function: 32" langsung ke console.warn untuk PDF hasil
+// export tertentu (mis. dari desain/Canva). Redam khusus selama parsing
+// agar tidak menutupi log error yang sebenarnya penting.
+async function parsePdfQuietly(buffer) {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    if (String(args[0] || '').includes('TT: undefined function')) return;
+    originalWarn(...args);
+  };
+  try {
+    return await pdfParse(buffer);
+  } finally {
+    console.warn = originalWarn;
+  }
+}
+
 app.post('/api/analyze', upload.single('cv'), async (req, res) => {
   res.setHeader('X-Data-Policy', 'no-storage');
 
@@ -382,7 +428,7 @@ app.post('/api/analyze', upload.single('cv'), async (req, res) => {
       return res.status(400).json({ error: 'File PDF wajib diunggah' });
     }
 
-    const pdfData = await pdfParse(req.file.buffer);
+    const pdfData = await parsePdfQuietly(req.file.buffer);
 
     if (pdfData.numpages > MAX_PDF_PAGES) {
       return res.status(400).json({
@@ -418,7 +464,7 @@ app.post('/api/analyze', upload.single('cv'), async (req, res) => {
       result.marketValue = normalizeMarketValue(result.marketValue);
     }
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite-preview';
 
     return res.json({
       success: true,

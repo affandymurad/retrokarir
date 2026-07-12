@@ -2,7 +2,8 @@ import React, { useRef, useState } from 'react';
 import styles from './ResultPage.module.css';
 
 const RISK_COLOR = { Rendah: '#22c55e', Sedang: '#f59e0b', Tinggi: '#ef4444' };
-const CONFIDENCE_COLOR = { Tinggi: '#22c55e', Sedang: '#f59e0b', Rendah: '#ef4444' };
+// Warna prioritas saran CV: prioritas Tinggi = paling mendesak (merah).
+const CONFIDENCE_COLOR = { Tinggi: '#ef4444', Sedang: '#f59e0b', Rendah: '#22c55e' };
 
 const PILLAR_LABELS = {
   analyticalThinking:      { label: 'Analytical Thinking',       icon: '🧠' },
@@ -141,51 +142,6 @@ function ScoreBar({ value, color }) {
   );
 }
 
-const TEMA_COLOR = {
-  'Bahasa Inggris': '#3b82f6',
-  'Metrik Dampak': '#f59e0b',
-  'Kepemimpinan': '#8b5cf6',
-  'Spesialisasi': '#ef4444',
-  'Portfolio': '#22c55e',
-  'Soft Skill': '#06b6d4',
-};
-
-function RoadmapTimeline({ gaps }) {
-  if (!Array.isArray(gaps) || gaps.length === 0) return null;
-  // Distribute gaps across a 12-month timeline: each gap gets a ~2-month slot
-  const months = ['Bln 1–2', 'Bln 3–4', 'Bln 5–6', 'Bln 7–8', 'Bln 9–10', 'Bln 11–12'];
-  const slots = gaps.slice(0, 6).map((gap, i) => ({ gap, month: months[i] || `Bln ${i * 2 + 1}–${i * 2 + 2}` }));
-
-  return (
-    <div style={{ marginTop: '24px' }}>
-      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
-        🗓 Roadmap 12 Bulan
-      </div>
-      <div style={{ position: 'relative', paddingLeft: '16px' }}>
-        {/* vertical line */}
-        <div style={{ position: 'absolute', left: '16px', top: '8px', bottom: '8px', width: '2px', background: 'var(--border)' }} />
-        {slots.map(({ gap, month }, i) => {
-          const color = TEMA_COLOR[gap.temaUtama] || '#64748b';
-          return (
-            <div key={i} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '16px', position: 'relative' }}>
-              {/* dot */}
-              <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: color, border: '2px solid white', boxShadow: `0 0 0 2px ${color}`, flexShrink: 0, marginTop: '4px', zIndex: 1 }} />
-              <div style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderLeft: `3px solid ${color}`, borderRadius: '0 10px 10px 0', padding: '10px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{month}</span>
-                  {gap.temaUtama && <span style={{ fontSize: '0.72rem', background: `${color}18`, color, border: `1px solid ${color}44`, borderRadius: '999px', padding: '1px 8px', fontWeight: 700 }}>{gap.temaUtama}</span>}
-                </div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: '3px' }}>{safeString(gap.area)}</div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{safeString(gap.langkah6Bulan)}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function ResultPage({ result, meta, onBack }) {
   const printRef = useRef();
   const [copiedKey, setCopiedKey] = useState(null);
@@ -303,7 +259,7 @@ ${r.ringkasanAwam?h2('💬 Penjelasan Sederhana')+`<div style="border:1px solid 
   .map(([k,l,ic,c])=>{const t=r.ringkasanAwam[k];if(!t)return'';return`<div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f5f9;"><span style="font-size:16px;flex-shrink:0;">${ic}</span><div><div style="font-size:10px;font-weight:800;color:${c};text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;">${l}</div><p style="font-size:13px;color:#334155;line-height:1.6;margin:0;">${t}</p></div></div>`}).join('')
 }</div>`:''}
 
-${r.pemetaanKompetensi ? h2('📊 Pemetaan Kompetensi') + `<p style="font-size:11px;color:#64748b;font-style:italic;margin:0 0 12px;">Berdasarkan 4 pilar Global Skills Taxonomy 2025 (WEF).</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${
+${r.pemetaanKompetensi ? h2('📊 Pemetaan Kompetensi') + `<p style="font-size:11px;color:#64748b;font-style:italic;margin:0 0 12px;">Berdasarkan 4 pilar Global Skills Taxonomy (WEF) dan kerangka SKKNI bidang terkait.</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${
   [['analyticalThinking','🧠','Analytical Thinking'],['resilienceAgility','🔄','Resilience & Agility'],['aiAndDigital','💻','AI & Digital Literacy'],['interpersonalLeadership','🤝','Interpersonal & Leadership']]
   .map(([k,ic,l])=>{const d=r.pemetaanKompetensi[k];if(!d)return'';const c=sc(clampScore(d.skor));return`<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;break-inside:avoid;page-break-inside:avoid;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;"><span style="font-size:11px;font-weight:700;color:#0f172a;">${ic} ${l}</span><strong style="font-size:13px;color:${c};">${d.skor}</strong></div>${bar(clampScore(d.skor),c)}${Array.isArray(d.kekuatan)?d.kekuatan.map(s=>`<div style="font-size:10px;color:#16a34a;padding:1px 0;line-height:1.4;">✓ ${safeString(s)}</div>`).join(''):''}${Array.isArray(d.celah)?d.celah.map(s=>`<div style="font-size:10px;color:#d97706;padding:1px 0;line-height:1.4;">△ ${safeString(s)}</div>`).join(''):''}</div>`;}).join('')
 }</div>` : ''}
@@ -419,7 +375,7 @@ ${quickWinsRows ? h2('⚡ Mulai Minggu Ini') + `
         {result.pemetaanKompetensi && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>📊 Pemetaan Kompetensi</h2>
-            <p className={styles.objectiveHint}>Berdasarkan 4 pilar Global Skills Taxonomy 2025 (WEF).</p>
+            <p className={styles.objectiveHint}>Berdasarkan 4 pilar Global Skills Taxonomy (WEF) dan kerangka SKKNI bidang terkait.</p>
             <div className={styles.pillarGrid}>
               {Object.entries(PILLAR_LABELS).map(([key, { label, icon }]) => {
                 const d = result.pemetaanKompetensi[key];
@@ -618,7 +574,7 @@ ${quickWinsRows ? h2('⚡ Mulai Minggu Ini') + `
           <div>
             <span className={styles.privacyTitle}>Catatan Privasi</span>
             <span className={styles.privacyText}>
-              Data CV dan informasi pribadi Anda <strong>tidak disimpan</strong> di server manapun. Semua pemrosesan bersifat sementara dan langsung dibuang setelah analisis selesai.
+              Data CV dan informasi pribadi Anda <strong>tidak disimpan</strong> di server kami. Semua pemrosesan bersifat sementara — teks CV hanya diteruskan ke API Google Gemini untuk analisis, lalu langsung dibuang setelah laporan selesai.
             </span>
           </div>
         </div>

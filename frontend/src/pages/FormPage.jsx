@@ -245,7 +245,6 @@ export default function FormPage({ onSubmit }) {
     } else if (!parseBirthDateToISO(birthDate)) {
       errs.birthDate = 'Format tanggal tidak valid. Gunakan DD/MM/YYYY';
     }
-    if (!gender) errs.gender = 'Jenis kelamin wajib dipilih';
     if (workTypes.length === 0) errs.workTypes = 'Pilih minimal satu tipe kerja';
     if (locations.length === 0 && !locationInput.trim()) errs.locations = 'Tambahkan minimal satu lokasi';
     setErrors(errs);
@@ -270,7 +269,7 @@ export default function FormPage({ onSubmit }) {
     const formData = new FormData();
     formData.append('cv', pdfFile);
     formData.append('userData', JSON.stringify({
-      fullName, birthDate: isoDate, gender, workTypes, dreamLocations: finalLocations
+      fullName, birthDate: isoDate, gender: gender || '-', workTypes, dreamLocations: finalLocations
     }));
 
     try {
@@ -292,7 +291,7 @@ export default function FormPage({ onSubmit }) {
     }
   };
 
-const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && fullName && birthDate && gender && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
+const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && fullName && birthDate && workTypes.length > 0 && (locations.length > 0 || locationInput.trim());
 
   return (
     <>
@@ -386,20 +385,19 @@ const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && full
           </div>
 
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>Jenis Kelamin <span className={styles.required}>*</span></label>
+            <label className={styles.fieldLabel}>Jenis Kelamin (opsional)</label>
             <div className={styles.genderGroup}>
               {['Laki-laki', 'Perempuan'].map(g => (
                 <button
                   key={g}
                   className={`${styles.genderBtn} ${gender === g ? styles.genderActive : ''}`}
-                  onClick={() => setGender(g)}
+                  onClick={() => setGender(prev => (prev === g ? '' : g))}
                   type="button"
                 >
                   {g === 'Laki-laki' ? '♂' : '♀'} {g}
                 </button>
               ))}
             </div>
-            {errors.gender && <span className={styles.error}>{errors.gender}</span>}
           </div>
         </div>
 
@@ -468,7 +466,6 @@ const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && full
           </div>
         </div>
 
-        {/* TODO: Uncomment button di bawah dan hapus label "Segera Hadir" saat sudah siap */}
         <button
           className={`${styles.submitBtn} ${!isValid ? styles.submitDisabled : ''}`}
           onClick={handleSubmit}
