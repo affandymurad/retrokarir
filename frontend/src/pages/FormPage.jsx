@@ -35,16 +35,26 @@ const QUOTES = [
   { text: 'Listrik bukan kemewahan, listrik adalah hak dasar setiap manusia.', author: 'Tri Mumpuni', role: 'Teknokrat Pemberdaya Listrik Pedesaan' },
 ];
 
+const ESTIMATED_SECONDS = 45;
+
 function LoadingOverlay({ modelName }) {
   const [qIdx, setQIdx] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setQIdx(i => (i + 1) % QUOTES.length), 4000);
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    const t = setInterval(() => setElapsed(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const q = QUOTES[qIdx];
   const label = modelName || 'Gemini AI';
+  // Progress caps at 92% agar tidak terlihat "selesai" sebelum respons API benar-benar diterima
+  const progress = Math.min(92, Math.round((elapsed / ESTIMATED_SECONDS) * 100));
 
   return (
     <div className={styles.loadingOverlay}>
@@ -62,6 +72,14 @@ function LoadingOverlay({ modelName }) {
         <div className={styles.loadingBadge}>
           <span className={styles.loadingBadgeDot} />
           {label}
+        </div>
+
+        {/* Progress bar */}
+        <div className={styles.progressBarWrap}>
+          <div className={styles.progressBarTrack}>
+            <div className={styles.progressBarFill} style={{ width: `${progress}%` }} />
+          </div>
+          <span className={styles.progressBarLabel}>Estimasi waktu: 30–60 detik</span>
         </div>
 
         {/* Rotating quote */}
@@ -127,6 +145,7 @@ function supportsDateInput() {
 }
 
 export default function FormPage({ onSubmit }) {
+  const [step, setStep] = useState(1);
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfPageCount, setPdfPageCount] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -235,10 +254,25 @@ export default function FormPage({ onSubmit }) {
 
   const removeLocation = (loc) => setLocations(prev => prev.filter(l => l !== loc));
 
+  const validateStep1 = () => {
+    const errs = {};
+    if (!pdfFile) errs.pdf = 'CV wajib diunggah';
+    if (pdfFile && pdfPageCount > MAX_PDF_PAGES) errs.pdf = `CV maksimal ${MAX_PDF_PAGES} halaman`;
+    if (!fullName.trim()) errs.fullName = 'Nama lengkap wajib diisi';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleContinue = () => {
+    if (!validateStep1()) return;
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const validate = () => {
     const errs = {};
     if (!pdfFile) errs.pdf = 'CV wajib diunggah';
-    if (pdfFile && pdfPageCount > MAX_PDF_PAGES) errs.pdf = `CV maksimal ${MAX_PDF_PAGES} halaman`; 
+    if (pdfFile && pdfPageCount > MAX_PDF_PAGES) errs.pdf = `CV maksimal ${MAX_PDF_PAGES} halaman`;
     if (!fullName.trim()) errs.fullName = 'Nama lengkap wajib diisi';
     if (!birthDate) {
       errs.birthDate = 'Tanggal lahir wajib diisi';
@@ -299,183 +333,206 @@ const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && full
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Upload CV & Isi Data Diri</h1>
-          <p className={styles.subtitle}>Lengkapi semua informasi berikut untuk analisis yang akurat</p>
+          <span className={styles.stepIndicator}>Langkah {step} dari 2</span>
+          <h1 className={styles.title}>{step === 1 ? 'Upload CV Anda' : 'Lengkapi Data Diri'}</h1>
+          <p className={styles.subtitle}>
+            {step === 1 ? 'Cukup unggah CV dan nama Anda untuk memulai' : 'Beberapa data tambahan agar rekomendasi lebih akurat'}
+          </p>
         </div>
 
-        {/* PDF Upload */}
-        <div className={styles.section}>
-          <label className={styles.sectionLabel}>
-            Dokumen CV <span className={styles.required}>*</span>
-          </label>
-          <div
-            className={`${styles.dropzone} ${dragging ? styles.dragging : ''} ${pdfFile ? styles.hasFile : ''}`}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input type="file" ref={fileInputRef} accept=".pdf" hidden onChange={async e => handleFile(e.target.files[0])} />
-            {pdfFile ? (
-              <div className={styles.fileInfo}>
-                <PdfIcon />
-                <div>
-                  <div className={styles.fileName}>{pdfFile.name}</div>
-                  <div className={styles.fileSize}>
-                    {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                    {pdfPageCount ? ` · ${pdfPageCount} halaman` : ''}
-                  </div>
-                </div>
-                <button className={styles.removeFile} onClick={e => { e.stopPropagation(); setPdfFile(null); setPdfPageCount(null); }}>
-                  <XIcon />
-                </button>
-              </div>
-            ) : (
-              <div className={styles.dropContent}>
-                <UploadIcon />
-                <div className={styles.dropText}>Seret & lepas PDF di sini, atau <span className={styles.dropLink}>klik untuk pilih</span></div>
-                <div className={styles.dropHint}>Format PDF · Maks. 3 halaman · Maks. 10 MB</div>
-              </div>
-            )}
-          </div>
-          <div className={styles.pdfLimitHint}>CV panjang sebaiknya diringkas ke 1–3 halaman agar proses analisis stabil di Netlify.</div>
-          {errors.pdf && <span className={styles.error}>{errors.pdf}</span>}
-        </div>
-
-        {/* Personal Info */}
-        <div className={styles.formGrid}>
-          <div className={styles.field}>
-            <label className={styles.fieldLabel}>Nama Lengkap <span className={styles.required}>*</span></label>
-            <input
-              className={`${styles.input} ${errors.fullName ? styles.inputError : ''}`}
-              type="text"
-              placeholder="Masukkan nama lengkap Anda"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-            />
-            {errors.fullName && <span className={styles.error}>{errors.fullName}</span>}
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.fieldLabel}>Tanggal Lahir <span className={styles.required}>*</span></label>
-            {hasDateSupport ? (
-              <input
-                className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
-                type="date"
-                value={birthDate}
-                onChange={e => setBirthDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-              />
-            ) : (
-              /* Fallback untuk Safari iOS yang tidak support input[type=date] */
-              <input
-                className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
-                type="text"
-                inputMode="numeric"
-                placeholder="DD/MM/YYYY"
-                value={birthDate}
-                onChange={e => setBirthDate(e.target.value)}
-                maxLength={10}
-              />
-            )}
-            {!hasDateSupport && (
-              <span className={styles.hint}>Contoh: 15/08/1995</span>
-            )}
-            {errors.birthDate && <span className={styles.error}>{errors.birthDate}</span>}
-          </div>
-
-          <div className={styles.field}>
-            <label className={styles.fieldLabel}>Jenis Kelamin (opsional)</label>
-            <div className={styles.genderGroup}>
-              {['Laki-laki', 'Perempuan'].map(g => (
-                <button
-                  key={g}
-                  className={`${styles.genderBtn} ${gender === g ? styles.genderActive : ''}`}
-                  onClick={() => setGender(prev => (prev === g ? '' : g))}
-                  type="button"
-                >
-                  {g === 'Laki-laki' ? '♂' : '♀'} {g}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Work Types */}
-        <div className={styles.section}>
-          <label className={styles.sectionLabel}>
-            Preferensi Tipe Kerja <span className={styles.required}>*</span>
-          </label>
-          <div className={styles.checkboxGroup}>
-            {WORK_TYPES.map(wt => (
-              <label key={wt} className={`${styles.checkItem} ${workTypes.includes(wt) ? styles.checkActive : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={workTypes.includes(wt)}
-                  onChange={() => toggleWorkType(wt)}
-                  hidden
-                />
-                <span className={styles.checkBox}>{workTypes.includes(wt) ? <CheckIcon /> : null}</span>
-                {wt}
+        {step === 1 && (
+          <>
+            {/* PDF Upload */}
+            <div className={styles.section}>
+              <label className={styles.sectionLabel}>
+                Dokumen CV <span className={styles.required}>*</span>
               </label>
-            ))}
-          </div>
-          {errors.workTypes && <span className={styles.error}>{errors.workTypes}</span>}
-        </div>
+              <div
+                className={`${styles.dropzone} ${dragging ? styles.dragging : ''} ${pdfFile ? styles.hasFile : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input type="file" ref={fileInputRef} accept=".pdf" hidden onChange={async e => handleFile(e.target.files[0])} />
+                {pdfFile ? (
+                  <div className={styles.fileInfo}>
+                    <PdfIcon />
+                    <div>
+                      <div className={styles.fileName}>{pdfFile.name}</div>
+                      <div className={styles.fileSize}>
+                        {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                        {pdfPageCount ? ` · ${pdfPageCount} halaman` : ''}
+                      </div>
+                    </div>
+                    <button className={styles.removeFile} onClick={e => { e.stopPropagation(); setPdfFile(null); setPdfPageCount(null); }}>
+                      <XIcon />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.dropContent}>
+                    <UploadIcon />
+                    <div className={styles.dropText}>Seret & lepas PDF di sini, atau <span className={styles.dropLink}>klik untuk pilih</span></div>
+                    <div className={styles.dropHint}>Format PDF · Maks. 3 halaman · Maks. 10 MB</div>
+                  </div>
+                )}
+              </div>
+              <div className={styles.lockBadge}>🔒 CV tidak disimpan</div>
+              <div className={styles.pdfLimitHint}>CV panjang sebaiknya diringkas ke 1–3 halaman agar proses analisis stabil di Netlify.</div>
+              {errors.pdf && <span className={styles.error}>{errors.pdf}</span>}
+            </div>
 
-        {/* Locations */}
-        <div className={styles.section}>
-          <label className={styles.sectionLabel}>
-            Lokasi Impian <span className={styles.required}>*</span>
-          </label>
-          <div className={`${styles.chipInput} ${errors.locations ? styles.inputError : ''}`}>
-            {locations.map(loc => (
-              <span key={loc} className={styles.chip}>
-                {loc}
-                <button onClick={() => removeLocation(loc)} className={styles.chipRemove}><XIcon /></button>
-              </span>
-            ))}
-            <input
-              type="text"
-              className={styles.chipInputField}
-              placeholder={locations.length === 0 ? 'Ketik lokasi, tekan Enter atau koma untuk tambah...' : 'Tambah lokasi...'}
-              value={locationInput}
-              onChange={handleLocationChange}
-              onKeyDown={handleLocationKey}
-            />
-          </div>
-          <div className={styles.hint}>Bisa berupa kota atau negara. Tekan Enter atau koma untuk menambahkan.</div>
-          {errors.locations && <span className={styles.error}>{errors.locations}</span>}
-        </div>
+            {/* Name */}
+            <div className={styles.section}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Nama Lengkap <span className={styles.required}>*</span></label>
+                <input
+                  className={`${styles.input} ${errors.fullName ? styles.inputError : ''}`}
+                  type="text"
+                  placeholder="Masukkan nama lengkap Anda"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                />
+                {errors.fullName && <span className={styles.error}>{errors.fullName}</span>}
+              </div>
+            </div>
 
-        {errors.submit && (
-          <div className={styles.submitError}>
-            <span className={styles.submitErrorIcon}>⚠️</span>
-            <span className={styles.submitErrorText}>{errors.submit}</span>
-          </div>
+            <button className={styles.submitBtn} onClick={handleContinue}>
+              Lanjutkan
+              <ArrowIcon />
+            </button>
+          </>
         )}
 
-        {/* Privacy Notice */}
-        <div className={styles.privacyNotice}>
-          <span className={styles.privacyIcon}>🔒</span>
-          <div>
-            <span className={styles.privacyTitle}>Privasi & Keamanan Data</span>
-            <span className={styles.privacyText}>
-              CV dan data pribadi Anda <strong>tidak disimpan</strong> di server kami. Semua data hanya diproses sementara dalam memori selama analisis berlangsung, kemudian langsung dibuang. Tidak ada data yang digunakan untuk keperluan selain analisis skill gap yang Anda minta.
-            </span>
-          </div>
-        </div>
+        {step === 2 && (
+          <>
+            {/* Personal Info */}
+            <div className={styles.formGrid}>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Tanggal Lahir <span className={styles.required}>*</span></label>
+                {hasDateSupport ? (
+                  <input
+                    className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
+                    type="date"
+                    value={birthDate}
+                    onChange={e => setBirthDate(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                ) : (
+                  /* Fallback untuk Safari iOS yang tidak support input[type=date] */
+                  <input
+                    className={`${styles.input} ${errors.birthDate ? styles.inputError : ''}`}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/YYYY"
+                    value={birthDate}
+                    onChange={e => setBirthDate(e.target.value)}
+                    maxLength={10}
+                  />
+                )}
+                {!hasDateSupport && (
+                  <span className={styles.hint}>Contoh: 15/08/1995</span>
+                )}
+                {errors.birthDate && <span className={styles.error}>{errors.birthDate}</span>}
+              </div>
 
-        <button
-          className={`${styles.submitBtn} ${!isValid ? styles.submitDisabled : ''}`}
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          Analisa Sekarang
-          <ArrowIcon />
-        </button>
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>Jenis Kelamin (opsional)</label>
+                <div className={styles.genderGroup}>
+                  {['Laki-laki', 'Perempuan'].map(g => (
+                    <button
+                      key={g}
+                      className={`${styles.genderBtn} ${gender === g ? styles.genderActive : ''}`}
+                      onClick={() => setGender(prev => (prev === g ? '' : g))}
+                      type="button"
+                    >
+                      {g === 'Laki-laki' ? '♂' : '♀'} {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
+            {/* Work Types */}
+            <div className={styles.section}>
+              <label className={styles.sectionLabel}>
+                Preferensi Tipe Kerja <span className={styles.required}>*</span>
+              </label>
+              <div className={styles.checkboxGroup}>
+                {WORK_TYPES.map(wt => (
+                  <label key={wt} className={`${styles.checkItem} ${workTypes.includes(wt) ? styles.checkActive : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={workTypes.includes(wt)}
+                      onChange={() => toggleWorkType(wt)}
+                      hidden
+                    />
+                    <span className={styles.checkBox}>{workTypes.includes(wt) ? <CheckIcon /> : null}</span>
+                    {wt}
+                  </label>
+                ))}
+              </div>
+              {errors.workTypes && <span className={styles.error}>{errors.workTypes}</span>}
+            </div>
 
+            {/* Locations */}
+            <div className={styles.section}>
+              <label className={styles.sectionLabel}>
+                Lokasi Impian <span className={styles.required}>*</span>
+              </label>
+              <div className={`${styles.chipInput} ${errors.locations ? styles.inputError : ''}`}>
+                {locations.map(loc => (
+                  <span key={loc} className={styles.chip}>
+                    {loc}
+                    <button onClick={() => removeLocation(loc)} className={styles.chipRemove}><XIcon /></button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  className={styles.chipInputField}
+                  placeholder={locations.length === 0 ? 'Ketik lokasi, tekan Enter atau koma untuk tambah...' : 'Tambah lokasi...'}
+                  value={locationInput}
+                  onChange={handleLocationChange}
+                  onKeyDown={handleLocationKey}
+                />
+              </div>
+              <div className={styles.hint}>Bisa berupa kota atau negara. Tekan Enter atau koma untuk menambahkan.</div>
+              {errors.locations && <span className={styles.error}>{errors.locations}</span>}
+            </div>
+
+            {errors.submit && (
+              <div className={styles.submitError}>
+                <span className={styles.submitErrorIcon}>⚠️</span>
+                <span className={styles.submitErrorText}>{errors.submit}</span>
+              </div>
+            )}
+
+            {/* Privacy Notice */}
+            <div className={styles.privacyNotice}>
+              <span className={styles.privacyIcon}>🔒</span>
+              <div>
+                <span className={styles.privacyTitle}>Privasi & Keamanan Data</span>
+                <span className={styles.privacyText}>
+                  CV dan data pribadi Anda <strong>tidak disimpan</strong> di server kami. Semua data hanya diproses sementara dalam memori selama analisis berlangsung, kemudian langsung dibuang. Tidak ada data yang digunakan untuk keperluan selain analisis skill gap yang Anda minta.
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.stepBtnRow}>
+              <button className={styles.backBtn} onClick={() => setStep(1)} type="button">
+                ← Kembali
+              </button>
+              <button
+                className={`${styles.submitBtn} ${!isValid ? styles.submitDisabled : ''}`}
+                onClick={handleSubmit}
+                disabled={loading}
+              >
+                Analisa Sekarang
+                <ArrowIcon />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
     </>

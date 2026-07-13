@@ -187,6 +187,7 @@ export default function LandingPage({ onStart }) {
   const [insightIdx, setInsightIdx] = useState(0);
   const [sectorIdx, setSectorIdx] = useState(0);
   const [outlookIdx, setOutlookIdx] = useState(0);
+  const [showSupportDetail, setShowSupportDetail] = useState(false);
 
   return (
     <div className={styles.page}>
@@ -194,58 +195,113 @@ export default function LandingPage({ onStart }) {
       <section className={styles.hero}>
         <div className={styles.badge}>✦ AI Career Intelligence · 2026</div>
         <h1 className={styles.heroTitle}>
-          Karier kamu di<br />
-          <span className={styles.heroAccent}>era AI & transisi hijau</span>
+          Ketahui Seberapa Kuat<br />
+          <span className={styles.heroAccent}>CV Anda Sebelum Melamar Kerja</span>
         </h1>
         <p className={styles.heroSubtitle}>
-          44% keterampilan kerja inti akan berubah pada 2027 (WEF). Analisis CV berbasis AI yang membaca skill gap, bukti pengalaman, dan peluang naik kelas — termasuk dari sektor informal, freelance, UMKM, dan proyek mandiri.
+          Upload CV dan dapatkan analisis AI mengenai:
         </p>
+        <ul className={styles.heroChecklist}>
+          <li>Skill yang sudah kuat</li>
+          <li>Skill yang masih kurang</li>
+          <li>Posisi kerja yang cocok</li>
+          <li>Rencana belajar 6–12 bulan</li>
+        </ul>
         <div className={styles.heroBtns}>
           <button className={styles.ctaBtn} onClick={onStart}>
-            Analisis CV Sekarang →
+            Analisis CV Gratis →
           </button>
         </div>
-      </section>
+        <p className={styles.heroFineprint}>Gratis · Privat · Hasil dalam 30–60 detik</p>
 
-      {/* ── Stats Strip ── */}
-      <div className={styles.statsRow}>
-        {STATS.map((s, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <div className={styles.statDivider} />}
-            <div className={styles.stat}>
-              <span className={styles.statNum}>{s.num}</span>
-              <span className={styles.statLabel}>{s.label}</span>
+        {/* Mockup preview of the AI report */}
+        <div className={styles.heroMockup}>
+          <div className={styles.heroMockupHeader}>
+            <span className={styles.heroMockupDot} />
+            <span className={styles.heroMockupDot} />
+            <span className={styles.heroMockupDot} />
+            <span className={styles.heroMockupLabel}>Contoh Laporan Analisis</span>
+          </div>
+          <div className={styles.heroMockupBody}>
+            <div className={styles.heroMockupRow}>
+              <span className={styles.heroMockupCheck}>✓</span>
+              <div>
+                <span className={styles.heroMockupRowTitle}>Skill kuat</span>
+                <span className={styles.heroMockupRowText}>Manajemen proyek, komunikasi, Excel lanjutan</span>
+              </div>
             </div>
-          </React.Fragment>
-        ))}
-      </div>
+            <div className={styles.heroMockupRow}>
+              <span className={styles.heroMockupCheckMuted}>△</span>
+              <div>
+                <span className={styles.heroMockupRowTitle}>Skill kurang</span>
+                <span className={styles.heroMockupRowText}>Analisis data, dasar SQL</span>
+              </div>
+            </div>
+            <div className={styles.heroMockupRow}>
+              <span className={styles.heroMockupCheckAccent}>★</span>
+              <div>
+                <span className={styles.heroMockupRowTitle}>Posisi cocok</span>
+                <span className={styles.heroMockupRowText}>Business Analyst · Product Ops · Data Analyst</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── Skill Gap Support Section ── */}
       <section className={styles.supportSection}>
         <div className={styles.supportIntro}>
-          <span className={styles.supportEyebrow}>Mengapa Retrokarir relevan?</span>
-          <h2 className={styles.supportTitle}>Skill gap Indonesia tidak cukup dijawab dengan daftar kursus.</h2>
-          <p className={styles.supportLead}>
-            Tantangannya adalah membaca skill yang benar-benar terlihat dari CV, pengalaman informal, portofolio, dan bukti kerja — lalu mengubahnya menjadi rute upskilling yang realistis untuk pasar kerja Indonesia.
-          </p>
+          <span className={styles.supportEyebrow}>Kenapa RetroKarir berbeda?</span>
+          <ul className={styles.supportChecklist}>
+            <li>Membaca pengalaman kerja informal</li>
+            <li>Mengukur skill gap secara spesifik</li>
+            <li>Memberikan roadmap belajar 6–12 bulan</li>
+            <li>Berdasarkan kondisi pasar kerja Indonesia</li>
+          </ul>
+          <button
+            className={styles.supportToggleBtn}
+            onClick={() => setShowSupportDetail(v => !v)}
+          >
+            {showSupportDetail ? 'Sembunyikan detail' : 'Pelajari lebih lanjut'} {showSupportDetail ? '▲' : '▼'}
+          </button>
         </div>
-        <div className={styles.supportGrid}>
-          {SKILL_GAP_SUPPORTS.map((item, i) => (
-            <article className={styles.supportCard} key={i}>
-              <div className={styles.supportIconWrap}>
-                <span className={styles.supportIcon}>{item.icon}</span>
+        {showSupportDetail && (
+          <>
+            <div className={styles.supportGrid}>
+              {SKILL_GAP_SUPPORTS.map((item, i) => (
+                <article className={styles.supportCard} key={i}>
+                  <div className={styles.supportIconWrap}>
+                    <span className={styles.supportIcon}>{item.icon}</span>
+                  </div>
+                  <span className={styles.supportTag}>{item.tag}</span>
+                  <h3 className={styles.supportCardTitle}>{item.title}</h3>
+                  <p className={styles.supportBody}>{item.body}</p>
+                  <span className={styles.supportMetric}>{item.metric}</span>
+                </article>
+              ))}
+            </div>
+            <p className={styles.supportSource}>
+              Disarikan dari Bappenas Working Papers 2026, World Bank Skills for the Labor Market in Indonesia, dan SMERU Digital Skills Landscape/Strategy Primer.
+            </p>
+          </>
+        )}
+      </section>
+
+      {/* ── Stats Strip (supporting proof, de-emphasized) ── */}
+      <div className={styles.statsWrap}>
+        <span className={styles.statsEyebrow}>Didukung data industri</span>
+        <div className={styles.statsRow}>
+          {STATS.map((s, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <div className={styles.statDivider} />}
+              <div className={styles.stat}>
+                <span className={styles.statNum}>{s.num}</span>
+                <span className={styles.statLabel}>{s.label}</span>
               </div>
-              <span className={styles.supportTag}>{item.tag}</span>
-              <h3 className={styles.supportCardTitle}>{item.title}</h3>
-              <p className={styles.supportBody}>{item.body}</p>
-              <span className={styles.supportMetric}>{item.metric}</span>
-            </article>
+            </React.Fragment>
           ))}
         </div>
-        <p className={styles.supportSource}>
-          Disarikan dari Bappenas Working Papers 2026, World Bank Skills for the Labor Market in Indonesia, dan SMERU Digital Skills Landscape/Strategy Primer.
-        </p>
-      </section>
+      </div>
 
       {/* ── Insight Carousel ── */}
       <section className={styles.carouselSection}>
@@ -303,7 +359,7 @@ export default function LandingPage({ onStart }) {
         <div className={styles.carouselHeader}>
           <div>
             <p className={styles.sectionTitle}>Sektor Prioritas 2026–2029</p>
-            <p className={styles.sectionSub}>Industri dengan permintaan talenta tertinggi</p>
+            <p className={styles.sectionSub}>Industri dengan permintaan talenta tertinggi — tren di baliknya</p>
           </div>
           <div className={styles.carouselNav}>
             <button
@@ -441,7 +497,7 @@ export default function LandingPage({ onStart }) {
           Upload CV, isi data singkat, dan dapatkan laporan karier berbasis AI dalam hitungan menit. Gratis, privat, dan relevan dengan kondisi pasar kerja Indonesia 2026 — dari jalur formal, informal, freelance, hingga transisi karier digital.
         </p>
         <button className={styles.ctaBtn} onClick={onStart}>
-          Mulai Analisis CV →
+          Analisis CV Gratis →
         </button>
       </section>
     </div>

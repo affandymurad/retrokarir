@@ -224,7 +224,7 @@ function safeStringValue(v) {
 
 const MAX_PDF_PAGES = Number(process.env.MAX_PDF_PAGES || 3);
 const MAX_CV_CHARS = Number(process.env.MAX_CV_CHARS || 14000);
-const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 18000);
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 30000);
 const MAX_OUTPUT_TOKENS = Number(process.env.MAX_OUTPUT_TOKENS || 6500);
 
 function compactCvText(text = '') {
