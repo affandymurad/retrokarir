@@ -5,7 +5,7 @@ import styles from './LandingPage.module.css';
 
 const STATS = [
   { num: '36%', label: 'keterampilan kerja inti di Indonesia akan berubah pada 2030 (WEF)' },
-  { num: '22,6%', label: 'pemuda Indonesia berstatus NEET (tidak kerja/sekolah)' },
+  { num: '21%', label: 'pemuda Indonesia berstatus NEET (tidak kerja/sekolah)' },
   { num: '6%', label: 'tenaga kerja dengan keterampilan digital tingkat lanjut (Kemenaker)' },
   { num: '19%', label: 'angkatan kerja Indonesia yang memiliki keahlian digital' },
 ];
