@@ -4,10 +4,10 @@ import styles from './LandingPage.module.css';
 // ── Data ─────────────────────────────────────────────────────
 
 const STATS = [
-  { num: '44%', label: 'keterampilan kerja inti akan berubah pada 2027 (WEF Future of Jobs)' },
+  { num: '36%', label: 'keterampilan kerja inti di Indonesia akan berubah pada 2030 (WEF)' },
   { num: '22,6%', label: 'pemuda Indonesia berstatus NEET (tidak kerja/sekolah)' },
-  { num: '<1%', label: 'tenaga kerja dengan keterampilan digital tingkat lanjut' },
-  { num: '43%', label: 'pekerja dengan skill digital dasar berada di sektor informal' },
+  { num: '6%', label: 'tenaga kerja dengan keterampilan digital tingkat lanjut (Kemenaker)' },
+  { num: '19%', label: 'angkatan kerja Indonesia yang memiliki keahlian digital' },
 ];
 
 const INSIGHTS = [
@@ -17,7 +17,7 @@ const INSIGHTS = [
     tagColor: '#ef4444',
     tagBg: '#fef2f2',
     headline: 'Era "Belajar Sekali, Bekerja Selamanya" Sudah Berakhir',
-    body: 'World Economic Forum (Future of Jobs Report) memproyeksikan 44% keterampilan kerja inti akan berubah pada 2027. Keterampilan paling dicari bukan lagi hanya coding — melainkan Analytical Thinking, AI & Big Data Literacy, dan Resilience & Agility.',
+    body: 'World Economic Forum (Future of Jobs Report 2025) memproyeksikan 36% keterampilan kerja inti di Indonesia akan berubah pada 2030. Keterampilan paling dicari bukan lagi hanya coding — melainkan Analytical Thinking, AI & Big Data Literacy, dan Resilience & Agility.',
   },
   {
     icon: '🤖',
@@ -41,7 +41,7 @@ const INSIGHTS = [
     tagColor: '#f59e0b',
     tagBg: '#fffbeb',
     headline: 'Kurang dari 8% Perusahaan Melatih Karyawannya',
-    body: 'Data menunjukkan kurang dari 8% perusahaan Indonesia menyediakan pelatihan formal. Artinya, pertumbuhan karier tidak bisa hanya mengandalkan tempat kerja. Inisiatif upskilling mandiri — yang terstandarisasi dan demand-driven seperti SKKNI atau DTS — menjadi semakin kritis.',
+    body: 'Data menunjukkan kurang dari 8% perusahaan Indonesia menyediakan pelatihan formal. Artinya, pertumbuhan karier tidak bisa hanya mengandalkan tempat kerja. Inisiatif upskilling mandiri — yang terstandarisasi dan demand-driven seperti Global Skills Taxonomy (WEF) atau DTS — menjadi semakin kritis.',
   },
   {
     icon: '🧰',
@@ -73,7 +73,7 @@ const SECTORS = [
     formal: '↑ Tumbuh pesat',
     formalColor: '#22c55e',
     formalBg: '#f0fdf4',
-    highlight: 'Big Data Specialist, Fintech Engineer, dan AI/ML Specialist dinyatakan langka oleh Kemenaker 2025. Keterampilan digital tingkat lanjut masih di bawah 1% tenaga kerja — gap terbesar di industri.',
+    highlight: 'Big Data Specialist, Fintech Engineer, dan AI/ML Specialist dinyatakan langka oleh Kemenaker 2025. Keterampilan digital tingkat lanjut masih di angka 6% tenaga kerja — gap terbesar di industri.',
     jobs: 'Big Data Specialist · Fintech Engineer · AI/ML Specialist · Cloud Architect · Cybersecurity Analyst',
   },
   {
@@ -101,7 +101,7 @@ const SECTORS = [
     formal: '⚠ Risiko otomasi untuk peran manual',
     formalColor: '#f59e0b',
     formalBg: '#fffbeb',
-    highlight: 'Peran konvensional (teller, kasir, admin keuangan) berisiko tinggi terdisrupsi otomasi. Namun Fintech Engineer dan Digital Finance Analyst justru menjadi peran paling dicari.',
+    highlight: 'Peran konvensional (teller, kasir, admin keuangan) berisiko tinggi terdisrupsi otomasi. Namun Fintech Engineer dan Digital Finance Analyst justru menjadi peran paling dicari. Sektor Aktivitas Keuangan & Asuransi juga tercatat sebagai penyumbang rata-rata upah tertinggi di Indonesia, Rp 5,05 juta/bln (BPS, Februari 2026).',
     jobs: 'Fintech Engineer · Digital Banking Analyst · Risk & Compliance Tech · Payment System Specialist',
   },
   {
@@ -127,7 +127,7 @@ const OUTLOOKS = [
     tagColor: '#3b82f6',
     tagBg: '#eff6ff',
     headline: 'Target 82% Penetrasi Internet Membuka Lapangan Kerja Digital Baru',
-    body: 'Melanjutkan arah Indonesia Digital Nation Roadmap, kebijakan digital nasional menargetkan 82% penetrasi internet dan 50% tenaga kerja dengan keterampilan digital menengah-atas. Ini membuka peluang besar bagi siapapun yang mau naik level dari keterampilan dasar ke lanjutan — mengingat hanya <1% tenaga kerja saat ini sudah di level advanced.',
+    body: 'Melanjutkan arah Indonesia Digital Nation Roadmap, kebijakan digital nasional menargetkan 82% penetrasi internet dan 50% tenaga kerja dengan keterampilan digital menengah-atas. Ini membuka peluang besar bagi siapapun yang mau naik level dari keterampilan dasar ke lanjutan — mengingat hanya 6% tenaga kerja saat ini sudah di level advanced.',
     footnote: 'Sumber: Indonesia Digital Nation Roadmap 2021–2024 & Making Indonesia 4.0',
   },
   {
@@ -136,7 +136,7 @@ const OUTLOOKS = [
     tagColor: '#ef4444',
     tagBg: '#fef2f2',
     headline: 'Just Transition: Tidak Ada yang Ditinggalkan',
-    body: 'WEF memproyeksikan 44% keterampilan kerja inti akan berubah pada 2027. Otomasi tidak harus berarti pengangguran — pekerja administrasi, teller, dan kasir yang proaktif upskilling ke peran augmented, menggabungkan pengalaman domain dengan AI literacy, justru menjadi profil paling berharga di era transisi ini.',
+    body: 'WEF memproyeksikan 36% keterampilan kerja inti di Indonesia akan berubah pada 2030. Otomasi tidak harus berarti pengangguran — pekerja administrasi, teller, dan kasir yang proaktif upskilling ke peran augmented, menggabungkan pengalaman domain dengan AI literacy, justru menjadi profil paling berharga di era transisi ini.',
     footnote: 'Sumber: WEF Future of Jobs Report · Konsep Just Transition: ILO & Kemenaker Indonesia 2025',
   },
   {
@@ -144,9 +144,9 @@ const OUTLOOKS = [
     tag: 'Standar Validasi',
     tagColor: '#16a34a',
     tagBg: '#f0fdf4',
-    headline: 'SKKNI & DTS: Pastikan Pelatihanmu Diakui Industri',
-    body: 'Banyak platform kursus online bermunculan, tapi tidak semua diakui industri atau pemerintah. SKKNI (ditetapkan Kemenaker, terakhir diatur melalui Permenaker No. 3 Tahun 2016) menjamin standar kompetensi yang demand driven. Untuk pelatihan digital, program Digital Talent Scholarship (DTS) dari Komdigi (dahulu Kominfo) adalah jalur yang terverifikasi.',
-    footnote: 'SKKNI: Kemenaker RI · DTS: Kementerian Komunikasi dan Digital (Komdigi)',
+    headline: 'Global Skills Taxonomy & DTS: Standar Kompetensi Masa Depan',
+    body: 'Retrokarir menggunakan kerangka Global Skills Taxonomy dari World Economic Forum untuk menjamin standar kompetensi yang diakui secara internasional. Untuk kebijakan lokal, kami menyelaraskan diri dengan Permenaker No. 5 Tahun 2024 tentang Sistem Informasi Pasar Kerja. Jalur pelatihan resmi dapat diakses melalui Digital Talent Scholarship (DTS) dari Komdigi.',
+    footnote: 'Referensi: WEF Skills Taxonomy · Permenaker 5/2024 · DTS Komdigi',
   },
 ];
 
@@ -193,59 +193,11 @@ export default function LandingPage({ onStart }) {
     <div className={styles.page}>
       {/* ── Hero ── */}
       <section className={styles.hero}>
-        <div className={styles.badge}>✦ AI Career Intelligence · 2026</div>
+        <div className={styles.badge}>✦ AI Career Intelligence & Skill Gap Analysis · 2026</div>
         <h1 className={styles.heroTitle}>
           Ketahui Seberapa Kuat<br />
           <span className={styles.heroAccent}>CV Anda Sebelum Melamar Kerja</span>
         </h1>
-        <p className={styles.heroSubtitle}>
-          Upload CV dan dapatkan analisis AI mengenai:
-        </p>
-        <ul className={styles.heroChecklist}>
-          <li>Skill yang sudah kuat</li>
-          <li>Skill yang masih kurang</li>
-          <li>Posisi kerja yang cocok</li>
-          <li>Rencana belajar 6–12 bulan</li>
-        </ul>
-        <div className={styles.heroBtns}>
-          <button className={styles.ctaBtn} onClick={onStart}>
-            Analisis CV Gratis →
-          </button>
-        </div>
-        <p className={styles.heroFineprint}>Gratis · Privat · Hasil dalam 30–60 detik</p>
-
-        {/* Mockup preview of the AI report */}
-        <div className={styles.heroMockup}>
-          <div className={styles.heroMockupHeader}>
-            <span className={styles.heroMockupDot} />
-            <span className={styles.heroMockupDot} />
-            <span className={styles.heroMockupDot} />
-            <span className={styles.heroMockupLabel}>Contoh Laporan Analisis</span>
-          </div>
-          <div className={styles.heroMockupBody}>
-            <div className={styles.heroMockupRow}>
-              <span className={styles.heroMockupCheck}>✓</span>
-              <div>
-                <span className={styles.heroMockupRowTitle}>Skill kuat</span>
-                <span className={styles.heroMockupRowText}>Manajemen proyek, komunikasi, Excel lanjutan</span>
-              </div>
-            </div>
-            <div className={styles.heroMockupRow}>
-              <span className={styles.heroMockupCheckMuted}>△</span>
-              <div>
-                <span className={styles.heroMockupRowTitle}>Skill kurang</span>
-                <span className={styles.heroMockupRowText}>Analisis data, dasar SQL</span>
-              </div>
-            </div>
-            <div className={styles.heroMockupRow}>
-              <span className={styles.heroMockupCheckAccent}>★</span>
-              <div>
-                <span className={styles.heroMockupRowTitle}>Posisi cocok</span>
-                <span className={styles.heroMockupRowText}>Business Analyst · Product Ops · Data Analyst</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* ── Skill Gap Support Section ── */}
@@ -301,6 +253,7 @@ export default function LandingPage({ onStart }) {
             </React.Fragment>
           ))}
         </div>
+        <span className={styles.statsSource}>Sumber: WEF Future of Jobs Report · Kemenaker RI 2025</span>
       </div>
 
       {/* ── Insight Carousel ── */}

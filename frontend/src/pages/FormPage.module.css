@@ -137,29 +137,6 @@
 
 .inputError { border-color: var(--danger) !important; }
 
-/* Gender */
-.genderGroup { display: flex; gap: 10px; }
-
-.genderBtn {
-  flex: 1;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.genderActive {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
-  font-weight: 600;
-}
-
 /* Textarea */
 .textareaWrap { position: relative; }
 

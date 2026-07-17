@@ -152,7 +152,6 @@ export default function FormPage({ onSubmit }) {
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [modelName, setModelName] = useState('');
-  const [gender, setGender] = useState('');
   const [workTypes, setWorkTypes] = useState([]);
   const [locationInput, setLocationInput] = useState('');
   const [locations, setLocations] = useState([]);
@@ -303,7 +302,7 @@ export default function FormPage({ onSubmit }) {
     const formData = new FormData();
     formData.append('cv', pdfFile);
     formData.append('userData', JSON.stringify({
-      fullName, birthDate: isoDate, gender: gender || '-', workTypes, dreamLocations: finalLocations
+      fullName, birthDate: isoDate, workTypes, dreamLocations: finalLocations
     }));
 
     try {
@@ -312,7 +311,7 @@ export default function FormPage({ onSubmit }) {
       const res = await fetch(apiUrl, { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Server error');
-      onSubmit(data.data, { fullName, birthDate: isoDate, gender, modelName: data.modelName || 'Gemini AI' });
+      onSubmit(data.data, { fullName, birthDate: isoDate, modelName: data.modelName || 'Gemini AI' });
       setModelName(data.modelName || 'Gemini AI');
     } catch (err) {
       // Sanitize raw API error — ambil kalimat pertama sebelum tanda kurung siku
@@ -434,22 +433,6 @@ const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && full
                   <span className={styles.hint}>Contoh: 15/08/1995</span>
                 )}
                 {errors.birthDate && <span className={styles.error}>{errors.birthDate}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Jenis Kelamin (opsional)</label>
-                <div className={styles.genderGroup}>
-                  {['Laki-laki', 'Perempuan'].map(g => (
-                    <button
-                      key={g}
-                      className={`${styles.genderBtn} ${gender === g ? styles.genderActive : ''}`}
-                      onClick={() => setGender(prev => (prev === g ? '' : g))}
-                      type="button"
-                    >
-                      {g === 'Laki-laki' ? '♂' : '♀'} {g}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 
