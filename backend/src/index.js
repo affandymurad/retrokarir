@@ -562,6 +562,39 @@ async function analyzeWithGemini(prompt) {
   return cleanJsonResponse(result.response.text());
 }
 
+// Kata kunci bagian yang lazim muncul di CV/resume (ID & EN). fileFilter
+// multer hanya mengecek header Content-Type yang mudah dipalsukan client,
+// jadi ini lapisan kedua: memastikan ISI dokumen memang CV, bukan berkas
+// lain (invoice, artikel, ebook, dsb.) yang tidak sengaja terunggah.
+const CV_SECTION_KEYWORDS = [
+  'curriculum vitae', 'daftar riwayat hidup', 'riwayat hidup', 'resume',
+  'pengalaman kerja', 'riwayat pekerjaan', 'riwayat organisasi',
+  'riwayat pendidikan', 'pendidikan', 'keahlian', 'keterampilan',
+  'kemampuan', 'organisasi', 'pelatihan', 'sertifikasi', 'referensi',
+  'ringkasan profil', 'profil singkat', 'data pribadi', 'informasi pribadi',
+  'kontak', 'work experience', 'professional experience',
+  'employment history', 'education', 'skills', 'certifications',
+  'summary', 'objective', 'references', 'projects', 'achievements',
+  'qualifications', 'work history',
+];
+
+const CV_CONTACT_PATTERNS = [
+  /[\w.+-]+@[\w-]+\.[a-z]{2,}/i, // email
+  /(?:\+?\d[\d\s().-]{7,}\d)/, // nomor telepon
+  /linkedin\.com\/in\//i,
+];
+
+// Butuh minimal 1 sinyal kontak (email/telepon/LinkedIn) DAN minimal 2 kata
+// kunci bagian CV yang lazim. Dua syarat ini mengurangi risiko dokumen lain
+// yang kebetulan menyebut satu-dua kata (mis. "pendidikan" di artikel berita)
+// lolos sebagai CV.
+function looksLikeCv(text) {
+  const lower = text.toLowerCase();
+  const keywordHits = CV_SECTION_KEYWORDS.filter(kw => lower.includes(kw)).length;
+  const contactHits = CV_CONTACT_PATTERNS.filter(re => re.test(text)).length;
+  return contactHits >= 1 && keywordHits >= 2;
+}
+
 // pdf-parse (via pdf.js) menulis warning font non-fatal seperti
 // "TT: undefined function: 32" langsung ke console.warn untuk PDF hasil
 // export tertentu (mis. dari desain/Canva). Redam khusus selama parsing
@@ -587,7 +620,25 @@ app.post('/api/analyze', upload.single('cv'), async (req, res) => {
       return res.status(400).json({ error: 'File PDF wajib diunggah' });
     }
 
-    const pdfData = await parsePdfQuietly(req.file.buffer);
+    // Content-Type dari client (dicek fileFilter multer) gampang dipalsukan;
+    // pastikan byte awal file memang signature PDF asli sebelum diparse.
+    if (req.file.buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+      return res.status(400).json({
+        error: 'File yang diunggah bukan PDF yang valid. Pastikan Anda mengunggah CV dalam format PDF asli.',
+        code: 'NOT_A_PDF',
+      });
+    }
+
+    let pdfData;
+    try {
+      pdfData = await parsePdfQuietly(req.file.buffer);
+    } catch (parseErr) {
+      console.error('PDF parse error:', parseErr);
+      return res.status(400).json({
+        error: 'File PDF tidak dapat dibaca. Pastikan file tidak rusak dan bukan hasil scan/gambar tanpa teks.',
+        code: 'PDF_UNREADABLE',
+      });
+    }
 
     if (pdfData.numpages > MAX_PDF_PAGES) {
       return res.status(400).json({
@@ -601,6 +652,13 @@ app.post('/api/analyze', upload.single('cv'), async (req, res) => {
     if (!cvText || cvText.trim().length < 50) {
       return res.status(400).json({
         error: 'Teks dalam PDF tidak dapat dibaca atau terlalu singkat',
+      });
+    }
+
+    if (!looksLikeCv(cvText)) {
+      return res.status(400).json({
+        error: 'File yang diunggah sepertinya bukan CV/Resume. Pastikan dokumen berisi bagian seperti pengalaman kerja, pendidikan, dan kontak, lalu unggah ulang.',
+        code: 'NOT_A_CV',
       });
     }
 

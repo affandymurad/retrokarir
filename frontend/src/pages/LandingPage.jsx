@@ -4,7 +4,7 @@ import styles from './LandingPage.module.css';
 // ── Data ─────────────────────────────────────────────────────
 
 const STATS = [
-  { num: '36%', label: 'keterampilan kerja inti di Indonesia akan berubah pada 2030 (WEF)' },
+  { num: '39%', label: 'keterampilan kerja inti diproyeksikan berubah pada 2030 (WEF Future of Jobs 2025)' },
   { num: '21%', label: 'pemuda Indonesia berstatus NEET (tidak kerja/sekolah)' },
   { num: '6%', label: 'tenaga kerja dengan keterampilan digital tingkat lanjut (Kemenaker)' },
   { num: '19%', label: 'angkatan kerja Indonesia yang memiliki keahlian digital' },
@@ -17,7 +17,7 @@ const INSIGHTS = [
     tagColor: '#ef4444',
     tagBg: '#fef2f2',
     headline: 'Era "Belajar Sekali, Bekerja Selamanya" Sudah Berakhir',
-    body: 'World Economic Forum (Future of Jobs Report 2025) memproyeksikan 36% keterampilan kerja inti di Indonesia akan berubah pada 2030. Keterampilan paling dicari bukan lagi hanya coding — melainkan Analytical Thinking, AI & Big Data Literacy, dan Resilience & Agility.',
+    body: 'World Economic Forum (Future of Jobs Report 2025) memproyeksikan 39% keterampilan kerja inti secara global akan berubah pada 2030, dengan digitalisasi dinilai sebagai pendorong transformasi pasar kerja paling penting di Indonesia dibanding rata-rata global. Keterampilan paling dicari bukan lagi hanya coding — melainkan Analytical Thinking, AI & Big Data Literacy, dan Resilience & Agility.',
   },
   {
     icon: '🤖',
@@ -25,7 +25,7 @@ const INSIGHTS = [
     tagColor: '#6366f1',
     tagBg: '#eef2ff',
     headline: 'AI Bukan Pengganti — Tapi Amplifier bagi yang Siap',
-    body: 'Studi MIT dan Stanford (2023) membuktikan GenAI meningkatkan produktivitas pekerja secara signifikan. Yang akan tertinggal bukan yang digantikan AI, melainkan yang tidak tahu cara menggunakannya. Retrokarir menganalisis sejauh mana CV kamu sudah mencerminkan AI literacy yang sesungguhnya.',
+    body: 'Studi lapangan "Generative AI at Work" oleh Brynjolfsson (Stanford), Li dan Raymond (MIT) membuktikan GenAI meningkatkan produktivitas pekerja rata-rata 14%, dengan dampak paling besar pada pekerja baru dan berperforma menengah. Yang akan tertinggal bukan yang digantikan AI, melainkan yang tidak tahu cara menggunakannya. Retrokarir menganalisis sejauh mana CV kamu sudah mencerminkan AI literacy yang sesungguhnya.',
   },
   {
     icon: '🌿',
@@ -33,15 +33,15 @@ const INSIGHTS = [
     tagColor: '#16a34a',
     tagBg: '#f0fdf4',
     headline: 'Ekonomi Hijau Membuka Kategori Karier Baru',
-    body: 'Indonesia menargetkan 20.000 pekerja bersertifikat green skills pada 2029. Sektor EBT, manufaktur berkelanjutan, dan ESG menjadi frontier baru. Apakah profilmu sudah relevan untuk transisi ini?',
+    body: 'Outlook Ketenagakerjaan 2026 dari Kemnaker memproyeksikan green jobs di Indonesia mencapai 3,88 juta orang pada 2026, didorong energi baru terbarukan, ekonomi sirkular, elektrifikasi transportasi, dan modernisasi industri. Sektor EBT, manufaktur berkelanjutan, dan ESG menjadi frontier baru. Apakah profilmu sudah relevan untuk transisi ini?',
   },
   {
     icon: '🏢',
     tag: 'Kesenjangan Pelatihan',
     tagColor: '#f59e0b',
     tagBg: '#fffbeb',
-    headline: 'Kurang dari 8% Perusahaan Melatih Karyawannya',
-    body: 'Data menunjukkan kurang dari 8% perusahaan Indonesia menyediakan pelatihan formal. Artinya, pertumbuhan karier tidak bisa hanya mengandalkan tempat kerja. Inisiatif upskilling mandiri — yang terstandarisasi dan demand-driven seperti Global Skills Taxonomy (WEF) atau DTS — menjadi semakin kritis.',
+    headline: 'Titik Terlemah Daya Saing Digital Indonesia: Pelatihan, Bukan Talenta',
+    body: 'Dalam IMD World Digital Competitiveness Ranking, aspek pelatihan dan pendidikan Indonesia berada di peringkat 63 dari 67 negara — jauh lebih rendah dibanding ranking talenta (27). Artinya, pertumbuhan karier tidak bisa hanya mengandalkan pelatihan formal dari tempat kerja. Inisiatif upskilling mandiri — yang terstandarisasi dan demand-driven seperti Global Skills Taxonomy (WEF) atau DTS — menjadi semakin kritis.',
   },
   {
     icon: '🧰',
@@ -57,7 +57,7 @@ const INSIGHTS = [
     tagColor: '#8b5cf6',
     tagBg: '#f5f3ff',
     headline: 'Peluang Karier Tidak Merata di Seluruh Indonesia',
-    body: 'Pengangguran Bali 1,5% vs Banten 8,1% — disparitas ini nyata. Retrokarir tidak hanya merekomendasikan jalur Jakarta-sentris, tapi menyesuaikan analisis dengan konteks industri lokal: nikel di Morowali, pariwisata di NTB, digital di Jabodetabek.',
+    body: 'Pengangguran Bali 1,5% vs Banten 6,6% (BPS) — disparitas ini nyata. Retrokarir tidak hanya merekomendasikan jalur Jakarta-sentris, tapi menyesuaikan analisis dengan konteks industri lokal: nikel di Morowali, pariwisata di NTB, digital di Jabodetabek.',
   },
 ];
 
@@ -84,7 +84,7 @@ const SECTORS = [
     tagBg: '#f0fdf4',
     demandLabel: 'Frontier Baru',
     demandColor: '#16a34a',
-    formal: '↑ Target 20.000 tenaga bersertifikat 2029',
+    formal: '↑ 3,88 juta green jobs pada 2026 (Kemnaker)',
     formalColor: '#16a34a',
     formalBg: '#f0fdf4',
     highlight: 'Indonesia mendorong transisi ke EBT, EV, dan pertanian berkelanjutan. Green skills menjadi diferensiasi kompetitif yang masih sangat jarang dimiliki kandidat lokal.',
@@ -126,9 +126,9 @@ const OUTLOOKS = [
     tag: 'Peluang 2026',
     tagColor: '#3b82f6',
     tagBg: '#eff6ff',
-    headline: 'Target 82% Penetrasi Internet Membuka Lapangan Kerja Digital Baru',
-    body: 'Melanjutkan arah Indonesia Digital Nation Roadmap, kebijakan digital nasional menargetkan 82% penetrasi internet dan 50% tenaga kerja dengan keterampilan digital menengah-atas. Ini membuka peluang besar bagi siapapun yang mau naik level dari keterampilan dasar ke lanjutan — mengingat hanya 6% tenaga kerja saat ini sudah di level advanced.',
-    footnote: 'Sumber: Indonesia Digital Nation Roadmap 2021–2024 & Making Indonesia 4.0',
+    headline: 'Penetrasi Internet Sudah 81,7% — Tapi Skill Digital Lanjutan Tertinggal Jauh',
+    body: 'APJII mencatat penetrasi internet Indonesia sudah menyentuh 81,72% pada 2026. Akses bukan lagi masalah utama — kesenjangannya ada di skill: hanya 6% tenaga kerja yang sudah di level digital advanced. Ini membuka peluang besar bagi siapapun yang mau naik level dari sekadar "melek internet" ke keterampilan digital yang benar-benar dibutuhkan pasar kerja.',
+    footnote: 'Sumber: APJII Survei Internet Indonesia 2026 · Kemenaker RI',
   },
   {
     icon: '🔄',
@@ -136,7 +136,7 @@ const OUTLOOKS = [
     tagColor: '#ef4444',
     tagBg: '#fef2f2',
     headline: 'Just Transition: Tidak Ada yang Ditinggalkan',
-    body: 'WEF memproyeksikan 36% keterampilan kerja inti di Indonesia akan berubah pada 2030. Otomasi tidak harus berarti pengangguran — pekerja administrasi, teller, dan kasir yang proaktif upskilling ke peran augmented, menggabungkan pengalaman domain dengan AI literacy, justru menjadi profil paling berharga di era transisi ini.',
+    body: 'WEF memproyeksikan 39% keterampilan kerja inti secara global akan berubah pada 2030. Otomasi tidak harus berarti pengangguran — pekerja administrasi, teller, dan kasir yang proaktif upskilling ke peran augmented, menggabungkan pengalaman domain dengan AI literacy, justru menjadi profil paling berharga di era transisi ini.',
     footnote: 'Sumber: WEF Future of Jobs Report · Konsep Just Transition: ILO & Kemenaker Indonesia 2025',
   },
   {
