@@ -101,6 +101,7 @@ function LoadingOverlay({ modelName }) {
 
 const WORK_TYPES = ['Full Time', 'Part Time', 'Remote', 'Hybrid'];
 const MAX_PDF_PAGES = 3;
+const MAX_LOCATIONS = 3;
 
 async function countPdfPages(file) {
   const buffer = await file.arrayBuffer();
@@ -230,6 +231,10 @@ export default function FormPage({ onSubmit }) {
   const handleLocationKey = (e) => {
     if (e.key === ',' || e.key === 'Enter') {
       e.preventDefault();
+      if (locations.length >= MAX_LOCATIONS) {
+        setLocationInput('');
+        return;
+      }
       const val = locationInput.trim().replace(/,$/, '');
       if (val && !locations.includes(val)) {
         setLocations(prev => [...prev, val]);
@@ -239,6 +244,10 @@ export default function FormPage({ onSubmit }) {
   };
 
   const handleLocationChange = (e) => {
+    if (locations.length >= MAX_LOCATIONS) {
+      setLocationInput('');
+      return;
+    }
     const val = e.target.value;
     if (val.endsWith(',')) {
       const trimmed = val.slice(0, -1).trim();
@@ -287,7 +296,7 @@ export default function FormPage({ onSubmit }) {
   const handleSubmit = async () => {
     // add any lingering locationInput
     let finalLocations = [...locations];
-    if (locationInput.trim() && !finalLocations.includes(locationInput.trim())) {
+    if (locationInput.trim() && finalLocations.length < MAX_LOCATIONS && !finalLocations.includes(locationInput.trim())) {
       finalLocations.push(locationInput.trim());
       setLocations(finalLocations);
       setLocationInput('');
@@ -470,16 +479,21 @@ const isValid = pdfFile && pdfPageCount && pdfPageCount <= MAX_PDF_PAGES && full
                     <button onClick={() => removeLocation(loc)} className={styles.chipRemove}><XIcon /></button>
                   </span>
                 ))}
-                <input
-                  type="text"
-                  className={styles.chipInputField}
-                  placeholder={locations.length === 0 ? 'Ketik lokasi, tekan Enter atau koma untuk tambah...' : 'Tambah lokasi...'}
-                  value={locationInput}
-                  onChange={handleLocationChange}
-                  onKeyDown={handleLocationKey}
-                />
+                {locations.length < MAX_LOCATIONS && (
+                  <input
+                    type="text"
+                    className={styles.chipInputField}
+                    placeholder={locations.length === 0 ? 'Ketik lokasi, tekan Enter atau koma untuk tambah...' : 'Tambah lokasi...'}
+                    value={locationInput}
+                    onChange={handleLocationChange}
+                    onKeyDown={handleLocationKey}
+                  />
+                )}
               </div>
-              <div className={styles.hint}>Bisa berupa kota atau negara. Tekan Enter atau koma untuk menambahkan.</div>
+              <div className={styles.hint}>
+                Bisa berupa kota atau negara. Tekan Enter atau koma untuk menambahkan. Maksimal {MAX_LOCATIONS} lokasi
+                {locations.length > 0 ? ` (${locations.length}/${MAX_LOCATIONS} terisi)` : ''} agar analisis tetap fokus dan tidak timeout.
+              </div>
               {errors.locations && <span className={styles.error}>{errors.locations}</span>}
             </div>
 

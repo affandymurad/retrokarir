@@ -254,10 +254,14 @@ function withTimeout(promise, ms = AI_TIMEOUT_MS) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-// ── Patokan gaji hasil kurasi (diperbarui manual berkala) ─────
-// Prompt market value dirakit dinamis: hanya patokan untuk lokasi yang
-// diminta pengguna yang disuntikkan, bukan daftar semua tier. Kota baru
-// cukup ditambahkan di tabel ini tanpa menyentuh teks prompt.
+// ── Jangkar ekonomi per lokasi (diperbarui manual berkala) ─────
+// Nama variabel masih "SALARY_BENCHMARKS" untuk histori. Field marketValue di
+// prompt SUDAH TIDAK menampilkan rentang gaji atau indeks/peringkat numerik apa
+// pun ke pengguna (dihapus karena tidak ada legend penjelasnya di UI) — data di
+// bawah ini sekarang dipakai HANYA sebagai referensi kualitatif untuk fakta
+// Cost of Living dan Pajak (lihat ATURAN MARKET VALUE / PROFIL KOTA di
+// buildPrompt), bukan untuk dicetak ulang sebagai angka.
+// Kota baru cukup ditambahkan di tabel ini tanpa menyentuh teks prompt.
 // PENTING: satu entri = satu mata uang lokal. Jangan gabung kota lintas
 // negara dengan mata uang berbeda ke satu guidance USD — itu penyebab bug
 // "semua kota dikutip USD" (mis. Stockholm/Singapura ikut USD padahal
@@ -484,8 +488,8 @@ KETENTUAN FIELD
 - profilRingkas.bidangKarier: maks 6 kata.
 - ringkasanAwam: setiap sub-field maks 2 kalimat. pesanPenyemangat wajib menyebut minimal 1 proyek/perusahaan/pencapaian spesifik dari CV.
 - pemetaanKompetensi: 4 pilar. Tiap pilar berisi 2 kekuatan dan 1 celah. Maks 12 kata per item.
-- analisisRisiko.level hanya "Rendah", "Sedang", atau "Tinggi". Tentukan level dan persentaseRisiko dengan menimbang posisi kerja pengguna pada kerangka Future of Job (Na, 2016): tugas rutin (routine) berisiko lebih tinggi tergantikan otomasi dibanding tugas tidak rutin (non-routine), dan pekerjaan berbasis knowledge labor (analisis, keputusan, kreativitas) lebih tahan otomasi dibanding physical/manual labor yang rutin. persentaseRisiko: 20–45 untuk profil senior multi-skill, 30–55 untuk fresh graduate/early career dengan tugas dominan rutin. faktorRisiko 2 item. penjelasan wajib konsisten dengan level yang dipilih (jangan menyebut risiko "rendah" jika level Sedang/Tinggi). Jika level Sedang/Tinggi, penjelasan wajib memuat jalur transisi peran. analisisRisiko.sumberKerangka wajib diisi persis: "Matriks Future of Job (Na, 2016) — posisi rutin/tidak-rutin dan knowledge/physical labor."
-- prakiraanPekerjaan.posisiPermintaanTinggi: 3–5 posisi yang permintaannya diproyeksikan naik dalam 2–3 tahun ke depan, relevan dengan bidang dan level pengguna (bukan daftar generik lintas industri). Tiap item wajib berisi "posisi" (nama jabatan) dan "alasan" (maks 1 kalimat, konkret — sebutkan tren/kebutuhan pasar spesifik, bukan alasan umum seperti "permintaan tinggi"). prakiraanPekerjaan.catatan wajib menyebutkan sifatnya indikatif (bukan jaminan) dan basis pertimbangan singkat (mis. tren industri, kerangka Future of Job).
+- analisisRisiko.level hanya "Rendah", "Sedang", atau "Tinggi". Tentukan level dan persentaseRisiko dengan menimbang posisi kerja pengguna pada kerangka task-biased technological change (Autor, Levy & Murnane, 2003): tugas rutin (routine) berisiko lebih tinggi tergantikan otomasi dibanding tugas tidak rutin (non-routine), dan pekerjaan berbasis cognitive/knowledge labor (analisis, keputusan, kreativitas) lebih tahan otomasi dibanding manual/physical labor yang rutin. persentaseRisiko: 20–45 untuk profil senior multi-skill, 30–55 untuk fresh graduate/early career dengan tugas dominan rutin. faktorRisiko 2 item. penjelasan wajib konsisten dengan level yang dipilih (jangan menyebut risiko "rendah" jika level Sedang/Tinggi). Jika level Sedang/Tinggi, penjelasan wajib memuat jalur transisi peran. analisisRisiko.sumberKerangka wajib diisi persis: "Kerangka Task-Based Automation Risk (Autor, Levy & Murnane, 2003) — posisi rutin/tidak-rutin dan cognitive/manual labor."
+- prakiraanPekerjaan.posisiPermintaanTinggi: 3–5 posisi yang permintaannya diproyeksikan naik dalam 2–3 tahun ke depan, relevan dengan bidang dan level pengguna (bukan daftar generik lintas industri). Tiap item wajib berisi "posisi" (nama jabatan) dan "alasan" (maks 1 kalimat, konkret — sebutkan tren/kebutuhan pasar spesifik, bukan alasan umum seperti "permintaan tinggi"). prakiraanPekerjaan.catatan wajib menyebutkan sifatnya indikatif (bukan jaminan) dan basis pertimbangan singkat (mis. tren industri, kerangka task-based automation risk).
 - kataKunciJobSeeker.posisi: 6–8 jabatan.
 - kataKunciJobSeeker.keahlian: 8–10 skill teknis/non-teknis.
 - kataKunciJobSeeker.rekomendasiKursus: WAJIB selalu diisi 3–5 item, TIDAK kondisional (isi terlepas dari seberapa kuat profil pengguna). Tiap item wajib berisi "platform" (pilih salah satu: Skillhub, Karirhub, Prakerja, Dicoding, Coursera — sesuaikan jenis kursus: Skillhub/Karirhub untuk pelatihan vokasi dan sertifikasi kompetensi nasional, Prakerja untuk upskilling dasar/pemula, Dicoding untuk skill teknis pemrograman/IT, Coursera untuk skill lanjutan atau sertifikasi bertaraf internasional), "topik" (nama kursus/skill spesifik maks 6 kata, harus menjawab langsung salah satu celah di pemetaanKompetensi atau gap di cvRewriteAdvice — dilarang topik generik), dan "alasan" (maks 1 kalimat, kaitkan eksplisit ke celah/gap spesifik yang ditemukan di CV).
@@ -494,30 +498,26 @@ KETENTUAN FIELD
 - quickWins: tepat 3 langkah minggu ini, berjenjang — langkah 1 ±15 menit, langkah 2 ±1 jam, langkah 3 ±3 jam; isi estimasiWaktu sesuai jenjang itu. aksi maks 12 kata dan bisa dilakukan tanpa biaya besar. Jika ada kebutuhan pelatihan, arahkan ke kanal resmi: Skillhub/Karirhub (SIAPkerja Kemnaker) atau Digital Talent Scholarship (Komdigi).
 - marketValue.catatan wajib berisi metodologi singkat.
 
-ATURAN MARKET VALUE
-Buat estimasi hanya untuk lokasi target: ${locationsStr}.
-marketValue harus flat object: key = nama lokasi, value = string. Satu-satunya key non-lokasi adalah "catatan".
-Patokan gaji per lokasi target (baseline = angka umum pasar, bukan maksimum; hasil kurasi berkala, mencampur jangkar rata-rata upah 2026 semua profesi dengan pita gaji role teknis/profesional):
+ATURAN MARKET VALUE (PROFIL KOTA)
+Field ini BUKAN LAGI rentang gaji — isinya adalah profil kota/lokasi target, supaya pengguna paham konteks tempat kerja, bukan cuma angka nominal.
+Buat profil hanya untuk lokasi target: ${locationsStr}.
+marketValue harus flat object: key = nama lokasi, value = string (satu paragraf, bukan nested object). Satu-satunya key non-lokasi adalah "catatan".
+Data ekonomi dasar per lokasi (dipakai sebagai referensi kasar untuk fakta Cost of Living dan Pajak di bawah — JANGAN diubah jadi angka indeks atau peringkat):
 ${salaryGuidance}
-Jangkar nasional Indonesia (Sakernas 2026): rata-rata upah nasional Rp 3,29 juta/bln — pakai sebagai batas bawah sanity-check untuk estimasi "Junior" di lokasi Indonesia manapun, jangan sampai di bawah ini tanpa alasan eksplisit.
-Aturan umum:
-- Level L3/L4/L5 hanya untuk role teknologi/product. Untuk role non-teknologi (administrasi, pendidikan, layanan, operasional, dsb.), gunakan jenjang junior/mid/senior dengan acuan pasar lokal yang wajar dan konservatif.
-- Rentang harus masuk akal: lebar baseline maksimal sekitar ±30% dari titik tengah, upper-market maksimal 1.5x batas atas baseline, dan angka harus konsisten dengan level yang disebut.
-- Penulisan rentang WAJIB memakai tanda hubung "-" biasa di antara dua angka, contoh: "Rp 18-30 juta/bln" atau "MYR 7.000-11.000/bln". Jangan memakai simbol lain untuk rentang.
-- WAJIB pakai HANYA mata uang lokal resmi yang disebutkan pada patokan gaji lokasi tersebut di atas. DILARANG memakai USD sebagai default untuk kota di luar Amerika Serikat — setiap patokan sudah eksplisit menyebut kode mata uangnya, ikuti persis (mis. Singapura = SGD, Stockholm = SEK, Kuala Lumpur = MYR, Doha = QAR), jangan diterjemahkan balik ke USD. Untuk lokasi yang patokannya menyebut "belum ada kurs terkurasi" atau volatil (mis. Meksiko, Argentina, Nigeria): sebut nominal lokal apa adanya, jangan mengarang kurs tetap, dan lewati konversi Rupiah.
-Aturan kalkulasi (anchor 2026, berbasis WEF Future of Jobs 2025 dan Sakernas 2026):
-1. Premium pendidikan: pemilik gelar S1/S2/S3 layak diberi estimasi sekitar 2,1x lebih tinggi dibanding upah rata-rata pendidikan dasar di wilayah tersebut — pakai sebagai sanity-check arah, bukan formula matematis presisi.
-2. Premium sektor: jika CV menunjukkan pengalaman di sektor Keuangan & Asuransi atau Informasi & Telekomunikasi, naikkan estimasi 30-60% di atas median pasar lokal untuk role setara.
-3. Koreksi bahasa Inggris: kurangi hingga 15% dari estimasi khusus untuk lokasi internasional jika skor TOEFL/IELTS tidak tercantum atau kemampuan bahasa Inggris profesional tidak terbukti di CV. Ini bagian dari faktor koreksi umum di bawah, jangan dihitung dobel.
-4. Batas remote: untuk skema remote dari Indonesia ke perusahaan luar negeri, batas atas (cap) adalah setara USD 5.000/bln (~Rp 80 juta) kecuali CV menunjukkan spesialisasi langka (mis. arsitektur sistem pembayaran ISO 8583, AI/ML tingkat lanjut) — sebutkan cap ini eksplisit di catatan lokasi remote.
-5. Risiko otomasi vs rentang: jika analisisRisiko.level "Rendah" (persentaseRisiko di bawah 25%), beri rentang upper-market yang lebih lebar (potensi kenaikan gaji lebih tinggi) dibanding profil dengan risiko Sedang/Tinggi, supaya kedua field saling konsisten.
-Faktor koreksi umum: kurangi 10–20% jika tidak ada metrik dampak bisnis, mayoritas pengalaman internal IT/non-product, banyak sertifikasi tetapi minim bukti deployment, atau belum ada rekam jejak pasar target (koreksi bahasa Inggris mengikuti aturan poin 3 di atas).
-Kurs: IDR sebagai acuan — USD×16.000, GBP×20.500, CHF×18.500, EUR×17.500, AUD×10.500, NZD×9.700, CAD×11.800, SGD×11.500, HKD×2.050, JPY×105, KRW×12, SEK×1.500, AED×4.350, QAR×4.400, SAR×4.270, KWD×52.000, MYR×3.500, THB×450, PHP×285, VND×0,65, PLN×4.070, RON×3.520, INR×190, CNY×2.220, BRL×3.080, CLP×17, ZAR×865, MAD×1.650, EGP×325. Tidak ada kurs tetap untuk MXN, ARS, dan NGN karena belum terkurasi/terlalu volatil — ikuti instruksi khusus di masing-masing patokan lokasi.
-Format value lokasi: "Baseline realistis [rentang mata uang/bln] untuk [level role]. Upper-market [angka] dapat dicapai jika [syarat eksplisit]. [Catatan onsite/remote/pajak/total compensation]."
-Untuk luar Indonesia, tambahkan konversi Rupiah dalam tanda kurung memakai kurs di atas, mis. "SGD 6.000/bln (~Rp 69 juta)". Untuk lokasi tanpa kurs di daftar (mis. Meksiko, Argentina, Nigeria), lewati konversi Rupiah dan sebut alasannya singkat di catatan (nilai tukar terlalu volatil/belum terkurasi untuk dipatok).
+Setiap value lokasi WAJIB memuat 5 fakta berikut, satu kalimat per fakta, urut sesuai nomor:
+1. Cost of living — sebutkan estimasi biaya hidup satu orang per bulan dalam RENTANG ANGKA YANG LEBAR memakai mata uang lokal lokasi itu sesuai data ekonomi dasar di atas, mencakup dari gaya hidup hemat (kos/kontrakan sederhana, makan seadanya, transportasi umum) sampai nyaman (tempat tinggal lebih baik, makan lebih fleksibel, transportasi pribadi/ride-hailing rutin) — mis. "Rp 5-15 juta/bln" atau "SGD 1.800-4.000/bln", JANGAN satu titik angka sempit. Tambahkan 1 kata sifat kualitatif untuk konteks (Rendah/Sedang/Tinggi dibanding kota besar lain di negara yang sama). Angka ini estimasi kasar biaya hidup, BUKAN indeks/skor relatif ke kota lain — jangan tulis dalam skala 0-100 atau bentuk peringkat apa pun.
+2. Pajak — sebutkan karakter pajak penghasilan yang relevan di lokasi itu (mis. progresif tinggi, flat rate, atau bebas pajak penghasilan untuk beberapa negara Teluk), berdasarkan data ekonomi dasar di atas kalau tersedia; jangan mengarang persentase pasti kalau tidak yakin — cukup gambarkan karakternya secara umum.
+3. Karakter industri dominan — sebutkan 2-3 sektor paling menonjol di kota/lokasi itu (mis. Jakarta = korporat/HQ/keuangan, Surabaya = manufaktur/trading/logistik, Bandung = kreatif/startup/edukasi, Singapura = fintech/regional HQ). Kaitkan dengan bidang karier pengguna jika relevan.
+4. Budaya kerja umum — jam kerja, prevalensi WFH/hybrid, dan tingkat komuter/kemacetan yang umum di kota tersebut secara realistis, bukan generalisasi klise.
+5. Kompetisi talent — level kompetisi kandidat untuk role sejenis pengguna di kota itu (Rendah/Sedang/Tinggi) beserta alasan singkat (mis. banyak kampus/talent pool besar, hub industri spesifik, banyak talent asing/ekspatriat).
+Aturan penulisan:
+- Satu paragraf per lokasi, maksimal 5 kalimat, satu kalimat per fakta, urutan persis sesuai poin 1-5 di atas.
+- Cost of living BOLEH memakai angka nominal dalam mata uang lokal (estimasi biaya hidup layak per bulan) karena itu satuan nyata yang langsung bisa dipahami pengguna. DILARANG memakai indeks/skor abstrak tanpa satuan nyata (mis. "75/100", "peringkat 3 dari 10", "indeks 130") untuk fakta manapun, termasuk Cost of Living dan Pajak — gunakan label kualitatif (Rendah/Sedang/Tinggi) atau deskripsi naratif untuk selain angka nominal.
+- Jangan pakai format lama "Baseline realistis .../ Upper-market ..." — field ini bukan lagi tentang rentang gaji per level role.
+- Hindari generalisasi kosong seperti "kota ini dinamis dan berkembang" — tiap kalimat wajib berisi fakta spesifik yang membedakan kota itu dari kota lain.
+marketValue.catatan wajib menjelaskan metodologi singkat: estimasi biaya hidup dan karakter pajak berasal dari data ekonomi dasar di atas (estimasi kasar, bukan indeks resmi pihak ketiga seperti Numbeo/Mercer), sementara karakter industri/budaya kerja/kompetisi talent berbasis pengetahuan umum tentang kota tersebut, bukan survei primer Retrokarir.
 
 OUTPUT JSON
-Urutan field di bawah ini disengaja: analisisRisiko WAJIB ditulis sebelum marketValue, karena aturan poin 5 di ATURAN MARKET VALUE mengharuskan rentang gaji mengacu ke analisisRisiko.level yang sudah ditentukan.
 {
   "profilRingkas": { "nama": "", "usia": 0, "bidangKarier": "" },
   "pemetaanKompetensi": {

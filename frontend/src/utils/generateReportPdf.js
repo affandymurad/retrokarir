@@ -1,7 +1,6 @@
 import jsPDF from 'jspdf';
 import {
   safeString,
-  injectIdrConversion,
   clampScore,
   getScoreColor,
   RISK_COLOR,
@@ -426,17 +425,18 @@ export function generateReportPdf(result, meta) {
     }
   }
 
-  // 7 — Estimasi Market Value
+  // 7 — Profil Kota & Lokasi Kerja
   const mvEntries = r.marketValue ? Object.entries(r.marketValue).filter(([k]) => k !== 'catatan') : [];
   if (mvEntries.length > 0) {
-    y = drawSectionTitle(doc, y, 'Estimasi Market Value');
+    y = drawSectionTitle(doc, y, 'Profil Kota & Lokasi Kerja');
+    y = drawParagraph(doc, 'Gambaran biaya hidup, pajak, karakter industri, budaya kerja, dan tingkat kompetisi talent di lokasi target — konteks tambahan berbasis pengetahuan umum, bukan data survei pasti atau indeks resmi pihak ketiga.', MARGIN, y, CONTENT_W, { fontSize: 8.5, style: 'italic', color: C.muted }) + 8;
     for (const [loc, val] of mvEntries) {
       y = ensureSpace(doc, y, 16);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       setTextColorHex(doc, C.secondary);
       doc.text(safeString(loc), MARGIN, y + 8);
-      y = drawParagraph(doc, injectIdrConversion(safeString(val)), MARGIN, y + 14, CONTENT_W, { fontSize: 9.5, color: C.accent }) + 6;
+      y = drawParagraph(doc, safeString(val), MARGIN, y + 14, CONTENT_W, { fontSize: 9.5, color: C.accent }) + 6;
       setDrawColorHex(doc, '#f1f5f9');
       doc.setLineWidth(0.5);
       doc.line(MARGIN, y, MARGIN + CONTENT_W, y);

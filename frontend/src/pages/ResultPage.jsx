@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import styles from './ResultPage.module.css';
 import {
   safeString,
-  injectIdrConversion,
   clampScore,
   getScoreColor,
   RISK_COLOR,
@@ -300,12 +299,12 @@ export default function ResultPage({ result, meta, onBack }) {
           </section>
         )}
         
-        {/* 9 — Market Value */}
+        {/* 9 — Profil Kota */}
         {result.marketValue && Object.keys(result.marketValue).length > 1 && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>💰 Estimasi Market Value</h2>
+            <h2 className={styles.sectionTitle}>🏙️ Profil Kota & Lokasi Kerja</h2>
             <p className={styles.objectiveHint}>
-              Estimasi konservatif-rasional berdasarkan bukti CV, bukan angka ideal. Konversi Rupiah dalam tanda kurung memakai kurs perkiraan dan bisa berubah — gunakan sebagai gambaran kasar, bukan angka final.
+              Gambaran biaya hidup, pajak, karakter industri, budaya kerja, dan tingkat kompetisi talent di lokasi target — konteks tambahan berbasis pengetahuan umum, bukan data survei pasti atau indeks resmi pihak ketiga.
             </p>
             <div className={styles.marketCard}>
               {Object.entries(result.marketValue)
@@ -313,7 +312,7 @@ export default function ResultPage({ result, meta, onBack }) {
                 .map(([loc, val], i) => (
                   <div key={i} className={styles.marketRow}>
                     <span className={styles.marketLoc}>{safeString(loc)}</span>
-                    <div className={styles.marketVal}>{injectIdrConversion(safeString(val))}</div>
+                    <div className={styles.marketVal}>{safeString(val)}</div>
                   </div>
                 ))}
               {result.marketValue.catatan && (
